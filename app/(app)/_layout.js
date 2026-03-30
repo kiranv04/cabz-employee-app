@@ -63,6 +63,10 @@ export default function AppLayout() {
         name="track/[id]"
         options={{ href: null }} // hidden from tab bar
       />
+      <Tabs.Screen
+        name="trip/[id]"
+        options={{ href: null }} // hidden from tab bar
+      />
     </Tabs>
   );
 }

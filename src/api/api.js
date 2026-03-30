@@ -2,7 +2,8 @@ import axios from 'axios';
 import { getAuthToken } from '../context/AuthContext';
 
 const api = axios.create({
-  baseURL: 'https://smartapi.studiohalfx.com', // change to your backend IP
+  baseURL: 'http://192.168.1.10:8000', // change to your backend IP
+  // baseURL: 'https://smartapi.studiohalfx.com', // change to your backend IP
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
