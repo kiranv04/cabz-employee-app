@@ -35,7 +35,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow CabzEmployee to use your location."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
