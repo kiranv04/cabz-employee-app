@@ -8,7 +8,7 @@ const ENDPOINTS = {
   LIST:          '/api/mobile/employees/bookings',           // GET  ?page=&status=
   SHOW:          (id) => `/api/mobile/employees/bookings/${id}`,   // GET
   CANCEL:        (id) => `/api/mobile/employees/bookings/${id}/cancel`, // POST
-  VEHICLE_TYPES: '/api/mobile/employees/vehicle-types',     // GET
+  VEHICLE_TYPES: (companyId) => `/api/mobile/employees/companies/${companyId}/vehicle-types`,     // GET
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,7 +64,11 @@ export const cancelBooking = async (id) => {
 // Fetch available vehicle types (for the booking form dropdown)
 // Returns: [{ id, name, description?, icon? }]
 // ─────────────────────────────────────────────────────────────────────────────
-export const getVehicleTypes = async () => {
-  const { data } = await api.get(ENDPOINTS.VEHICLE_TYPES);
-  return data; // { data: vehicleType[] }
+export const getVehicleTypes = async (companyId) => {
+  // console.log('getVehicleTypes called with companyId:', companyId); // ← does this print?
+    const response = await api.get(ENDPOINTS.VEHICLE_TYPES(companyId));
+    // console.log('Full response:', response);
+    // console.log('Response data:', response.data);
+    return response.data;
+
 };
