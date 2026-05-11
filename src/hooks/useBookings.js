@@ -17,7 +17,7 @@ export const bookingKeys = {
   list:         (filters) => [...bookingKeys.lists(), filters],
   details:      () => [...bookingKeys.all, 'detail'],
   detail:       (id) => [...bookingKeys.details(), id],
-  vehicleTypes: ['vehicleTypes'],
+  vehicleTypes: (companyId) => ['vehicleTypes', companyId],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,11 +25,13 @@ export const bookingKeys = {
 // Fetches vehicle types for the booking form.
 // Cached for 10 minutes — this data rarely changes.
 // ─────────────────────────────────────────────────────────────────────────────
-export const useVehicleTypes = () => {
+export const useVehicleTypes = (companyId) => {
+  // console.log('Fetching vehicle types for companyId:', companyId);
   return useQuery({
-    queryKey: bookingKeys.vehicleTypes,
-    queryFn:  getVehicleTypes,
+    queryKey: bookingKeys.vehicleTypes(companyId),
+    queryFn: () => getVehicleTypes(companyId),
     staleTime: 10 * 60 * 1000,
+    enabled:  !!companyId,   
     select: (data) => data.data ?? [],
   });
 };
@@ -168,7 +170,7 @@ export const useCancelBooking = (id) => {
 // canCancelBooking — pure helper, no hooks
 // ─────────────────────────────────────────────────────────────────────────────
 export const canCancelBooking = (status) => {
-  return status === 'pending' || status === 'assigned';
+  return status === 'pending';
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

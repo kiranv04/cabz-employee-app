@@ -71,9 +71,10 @@ const PendingState = ({ booking }) => (
 
 // ── Assigned state: driver info shown, no live map yet ───────────────────────
 const AssignedState = ({ booking }) => {
+  // console.log('Assigned booking details:', booking); // Debug log to inspect booking data structure
   const driver  = booking.driver;
   const vehicle = booking.vehicle;
-  const vehicleType = booking.rate_card_vehicle.vehicle_type;
+  // const vehicleType = booking.rate_card_vehicle.vehicle_type;
 
   return (
     <View style={styles.assignedCard}>
@@ -95,7 +96,7 @@ const AssignedState = ({ booking }) => {
         <View style={styles.vehicleRow}>
           <Ionicons name="car-outline" size={16} color={colors.textSecondary} />
           <Text style={styles.vehicleText}>
-            {vehicleType.name} · {vehicle.license_plate}
+            · {vehicle.license_plate}
           </Text>
         </View>
       )}
@@ -113,7 +114,18 @@ const AssignedState = ({ booking }) => {
           <Text style={styles.routeText} numberOfLines={2}>{booking.drop_address}</Text>
         </View>
       </View>
-
+      <View style={styles.waitMeta}>
+        <View style={styles.waitMetaRow}>
+          <Ionicons name="calendar-outline" size={15} color={colors.textSecondary} />
+          <Text style={styles.waitMetaText}>{formatDateTime(booking.scheduled_at)}</Text>
+        </View>
+      </View>
+      <View style={styles.waitMeta}>
+        <View style={styles.waitMetaRow}>
+          <Text style={styles.otp}>OTP for driver: </Text>
+          <Text style={styles.otp}>{booking.employee.otp}</Text>
+        </View>
+      </View>
       <View style={styles.mapComingSoon}>
         <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
         <Text style={styles.mapComingSoonText}>Live tracking coming soon</Text>
@@ -220,7 +232,7 @@ export default function TrackScreen() {
   const { id } = useLocalSearchParams();
   const { data: booking, isLoading, isError, refetch, isRefetching } = useBooking(id);
   const { mutate: cancel, isPending: cancelling } = useCancelBooking(id);
-  
+  console.log('Booking data:', booking);
 
   const handleCancel = () => {
     Alert.alert(
@@ -434,6 +446,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     gap: 4,
+    marginBottom: 12,
   },
   waitMetaRow: {
     flexDirection: 'row',
@@ -683,4 +696,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.error ?? '#EF4444',
   },
+  otp: {
+    fontsize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  }
 });

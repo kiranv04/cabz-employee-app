@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,7 +48,7 @@ const SectionHeader = ({ title }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { data: booking, isLoading, isError, refetch } = useBookingDetail(id);
+  const { data: booking, isLoading, isError, isRefetching, refetch } = useBookingDetail(id);
 
   // ── Loading ──
   if (isLoading) {
@@ -75,7 +76,7 @@ export default function TripDetailScreen() {
   const cfg     = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.completed;
   const driver  = booking.driver;
   const vehicle = booking.vehicle;
-  const vehicleType = booking.rate_card_vehicle.vehicle_type;
+  // const vehicleType = booking.rate_card_vehicle.vehicle_type;
 
   return (
     <View style={styles.flex}>
@@ -95,6 +96,14 @@ export default function TripDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            colors={[colors.primary]}        // Android
+            tintColor={colors.primary}       // iOS
+          />
+        }
       >
 
         {/* ── Status banner ── */}
@@ -133,11 +142,11 @@ export default function TripDetailScreen() {
             label="Trip Type"
             value={TRIP_TYPE_LABELS[booking.trip_type] ?? booking.trip_type}
           />
-          <DetailRow
+          {/* <DetailRow
             icon="car-outline"
             label="Vehicle Type"
             value={vehicleType.name}
-          />
+          /> */}
           {/* <DetailRow
             icon="calendar-outline"
             label="Scheduled"
@@ -180,7 +189,7 @@ export default function TripDetailScreen() {
               <DetailRow
                 icon="car-sport-outline"
                 label="Vehicle"
-                value={`${vehicleType.name} - ${vehicle.license_plate}`}
+                value={`${vehicle.license_plate}`}
               />
             )}
           </View>

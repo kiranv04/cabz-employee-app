@@ -61,8 +61,11 @@ const formatLocalISO = (date) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function BookCabScreen() {
   const { user } = useAuth();
-  const { data: vehicleTypes = [], isLoading: loadingVehicles } = useVehicleTypes();
+  const companyId = user?.employee.owner_id;
+  const { data: vehicleTypes = [], isLoading: loadingVehicles } = useVehicleTypes(companyId);
   const { mutate: createBooking, isPending: isSubmitting } = useCreateBooking();
+  
+  // console.log('Veh types', vehicleTypes); // Debug log to inspect user data structure
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [tripType, setTripType]               = useState(null);
