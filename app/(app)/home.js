@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '../../src/context/AuthContext';
@@ -200,12 +200,12 @@ export default function HomeScreen() {
   const company    = costCenter?.branch?.company;
 
   // Pull-to-refresh invalidates both queries
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: bookingKeys.list({ status: 'active', per_page: 1 }) }),
-      queryClient.invalidateQueries({ queryKey: bookingKeys.list({ status: 'completed', per_page: 3 }) }),
+      queryClient.invalidateQueries({ queryKey: bookingKeys.lists() }),
     ]);
     setRefreshing(false);
   }, [queryClient]);
@@ -315,11 +315,6 @@ export default function HomeScreen() {
     </ScrollView>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Need React for useState (pull-to-refresh)
-// ─────────────────────────────────────────────────────────────────────────────
-import React from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles

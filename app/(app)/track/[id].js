@@ -141,18 +141,32 @@ const AssignedState = ({ booking }) => {
 const MOCK_DRIVER_LOCATION = { latitude: 12.9716, longitude: 77.5946 }; // Bengaluru center
 
 const InProgressState = ({ booking }) => {
-  const driver  = booking.driver;
-  const vehicle = booking.vehicle;
+  const driver      = booking.driver;
+  const vehicle     = booking.vehicle;
+  const vehicleType = booking.vehicle_type;
 
-  // Default map region centered on driver mock location
-  const region = {
-    ...MOCK_DRIVER_LOCATION,
-    latitudeDelta:  0.03,
-    longitudeDelta: 0.03,
-  };
+  // TODO: Uncomment when Google Maps is integrated
+  // const region = {
+  //   ...MOCK_DRIVER_LOCATION,
+  //   latitudeDelta:  0.03,
+  //   longitudeDelta: 0.03,
+  // };
 
   return (
-    <View style={styles.mapContainer}>
+    // TODO: Swap this View back to mapContainer style when map is ready
+    // <View style={styles.mapContainer}>
+    <View style={styles.inProgressContainer}>
+
+      {/* ── Static banner (remove when map is live) ─────────────────────── */}
+      <View style={styles.inProgressBanner}>
+        <View style={styles.inProgressIconWrap}>
+          <Ionicons name="car" size={32} color={colors.primary} />
+        </View>
+        <Text style={styles.inProgressTitle}>Trip in Progress</Text>
+        <Text style={styles.inProgressSubtitle}>Your ride is currently underway</Text>
+      </View>
+
+      {/* ── TODO: Uncomment MapView when Google Maps is integrated ────────
       <MapView
         style={styles.map}
         provider={PROVIDER_GOOGLE}
@@ -160,15 +174,74 @@ const InProgressState = ({ booking }) => {
         showsUserLocation
         showsMyLocationButton={false}
       >
-        {/* Mock driver marker — replace lat/lng with Pusher payload when ready */}
         <Marker coordinate={MOCK_DRIVER_LOCATION} title={driver?.name ?? 'Driver'}>
           <View style={styles.driverMarker}>
             <Ionicons name="car" size={18} color="#fff" />
           </View>
         </Marker>
       </MapView>
+      ──────────────────────────────────────────────────────────────────── */}
 
-      {/* Driver info strip over the map */}
+      {/* ── Driver + vehicle card ────────────────────────────────────────── */}
+      <View style={styles.assignedCard}>
+        <View style={styles.driverRow}>
+          <View style={styles.driverAvatar}>
+            <Ionicons name="person" size={24} color="#fff" />
+          </View>
+          <View style={styles.driverInfo}>
+            <Text style={styles.driverName}>{driver?.name ?? '—'}</Text>
+            {driver?.mobile && (
+              <Text style={styles.driverMeta}>{driver.mobile}</Text>
+            )}
+          </View>
+          <StatusChip status="in_progress" />
+        </View>
+
+        {vehicle && (
+          <View style={styles.vehicleRow}>
+            <Ionicons name="car-outline" size={16} color={colors.textSecondary} />
+            <Text style={styles.vehicleText}>
+              {vehicleType?.name ?? '—'} · {vehicle.license_plate}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.divider} />
+
+        {/* Route */}
+        <View style={styles.routeBlock}>
+          <View style={styles.routeRow}>
+            <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
+            <Text style={styles.routeText} numberOfLines={2}>{booking.pickup_address}</Text>
+          </View>
+          <View style={styles.routeLine} />
+          <View style={styles.routeRow}>
+            <View style={[styles.routeDot, { backgroundColor: colors.error ?? '#EF4444' }]} />
+            <Text style={styles.routeText} numberOfLines={2}>{booking.drop_address}</Text>
+          </View>
+        </View>
+
+        {/* Started at */}
+        <View style={styles.waitMeta}>
+          <View style={styles.waitMetaRow}>
+            <Ionicons name="time-outline" size={15} color={colors.textSecondary} />
+            <Text style={styles.waitMetaText}>
+              Started: {formatDateTime(booking.started_at)}
+            </Text>
+          </View>
+        </View>
+
+        {/* ── TODO: Swap this for real-time ETA when Pusher/Reverb is wired up
+            Channel: private-booking.{id}
+            Event:   DriverLocationUpdated → { lat, lng, bearing, eta_minutes }
+        ── */}
+        <View style={styles.mapComingSoon}>
+          <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
+          <Text style={styles.mapComingSoonText}>Live tracking coming soon</Text>
+        </View>
+      </View>
+
+      {/* ── TODO: Uncomment driverStrip when map is live (sits over the map) ─
       <View style={styles.driverStrip}>
         <View style={styles.driverStripAvatar}>
           <Ionicons name="person" size={18} color="#fff" />
@@ -177,13 +250,16 @@ const InProgressState = ({ booking }) => {
           <Text style={styles.driverStripName}>{driver?.name ?? '—'}</Text>
           {vehicle && (
             <Text style={styles.driverStripMeta}>
-              {vehicle.make} {vehicle.model} · {vehicle.plate_number}
+              {vehicleType?.name ?? '—'} · {vehicle.license_plate}
             </Text>
           )}
         </View>
         <StatusChip status="in_progress" />
       </View>
+      ──────────────────────────────────────────────────────────────────── */}
+
     </View>
+    // </View> {/* closes mapContainer */}
   );
 };
 
@@ -232,7 +308,7 @@ export default function TrackScreen() {
   const { id } = useLocalSearchParams();
   const { data: booking, isLoading, isError, refetch, isRefetching } = useBooking(id);
   const { mutate: cancel, isPending: cancelling } = useCancelBooking(id);
-  console.log('Booking data:', booking);
+  // console.log('Booking data:', booking);
 
   const handleCancel = () => {
     Alert.alert(
@@ -300,10 +376,20 @@ export default function TrackScreen() {
 
       {/* ── Content — map fills screen for in_progress, scrollable otherwise ── */}
       {isInProgress ? (
-        <>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.primary}
+            />
+          }
+        >
           <InProgressState booking={booking} />
           {/* Cancel strip below map for assigned/in_progress if applicable */}
-        </>
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -611,6 +697,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  inProgressContainer: {
+    flex: 1,
+    padding: 16,
+    gap: 16,
+  },
+  inProgressBanner: {
+    backgroundColor: colors.primary + '15',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    gap: 6,
+  },
+  inProgressIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  inProgressTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  inProgressSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
 
   // ── Done state ──
