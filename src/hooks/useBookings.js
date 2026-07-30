@@ -224,7 +224,9 @@ export const buildBookingPayload = (user, form) => {
 export const STATUS_CONFIG = {
   pending:     { label: 'Pending',     bg: '#FEF3C7', text: '#92400E', icon: 'time-outline' },
   assigned:    { label: 'Assigned',    bg: '#DBEAFE', text: '#1E40AF', icon: 'person-outline' },
-  in_progress: { label: 'In Progress', bg: '#D1FAE5', text: '#065F46', icon: 'navigate-outline' },
+  journey_started:  { label: "Journey Started", text: "#4f46e5", bg: "#eef2ff", icon: 'navigate-outline'  },
+  trip_in_progress: { label: 'In Progress', bg: '#D1FAE5', text: '#065F46', icon: 'navigate-outline' },
+  trip_ended:       { label: "Trip Ended", text: "#d97706", bg: "#fffbeb", icon:'checkmark-circle-outline' },
   completed:   { label: 'Completed',   bg: '#F3F4F6', text: '#374151', icon: 'checkmark-circle-outline' },
   cancelled:   { label: 'Cancelled',   bg: '#FEE2E2', text: '#991B1B', icon: 'close-circle-outline' },
 };

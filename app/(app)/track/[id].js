@@ -356,8 +356,8 @@ export default function TrackScreen() {
   }
 
   const status = booking.status;
-  const isInProgress = status === 'in_progress';
-  const isDone = status === 'completed' || status === 'cancelled';
+  const isInProgress = status === 'trip_in_progress';
+  const isDone = status === 'completed' || status === 'cancelled' || status === 'trip_ended';
 
   return (
     <View style={styles.flex}>
