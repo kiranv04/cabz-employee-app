@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { registerLogoutHandler } from '../api/authEvents';
 
 const TOKEN_KEY = 'employee_auth_token';
 const USER_KEY = 'employee_user_data';
@@ -16,15 +17,27 @@ export function AuthProvider({ children }) {
       try {
         const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
         const storedUser = await SecureStore.getItemAsync(USER_KEY);
-        if (storedToken) setToken(storedToken);
-        if (storedUser) setUser(JSON.parse(storedUser));
+        if (storedToken && storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setToken(storedToken);
+          setDriver(parsedUser);
+        }
       } catch (e) {
         console.error('Failed to load session', e);
+        await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
+        await SecureStore.deleteItemAsync(USER_KEY).catch(() => {});
       } finally {
         setIsLoading(false);
       }
     }
     loadSession();
+  }, []);
+
+  useEffect(() => {
+    registerLogoutHandler(async () => {
+      await logout();
+      router.replace('/login');
+    });
   }, []);
 
   const login = async (newToken, userData) => {
@@ -35,10 +48,17 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(USER_KEY);
-    setToken(null);
-    setUser(null);
+    try {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
+    } catch (error) {
+      console.error('Failed to clear SecureStore on logout:', error);
+    } finally {
+      // This ensures the user is logged out in the app's state,
+      // even if SecureStore throws an error.
+      setToken(null);
+      setDriver(null);
+    }
   };
 
   return (

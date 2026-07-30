@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getAuthToken } from '../context/AuthContext';
+import { triggerUnauthorized } from './authEvents';
 
 const api = axios.create({
   // baseURL: 'http://192.168.1.10:8000', // change to your backend IP
@@ -27,6 +28,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       console.warn('Unauthorized — token may be expired');
+      triggerUnauthorized();
     }
     return Promise.reject(error);
   }

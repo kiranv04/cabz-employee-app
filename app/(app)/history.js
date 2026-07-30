@@ -25,7 +25,7 @@ const FILTERS = [
   { label: 'All',         value: null },
   { label: 'Pending',     value: 'pending' },
   { label: 'Assigned',    value: 'assigned' },
-  { label: 'In Progress', value: 'in_progress' },
+  { label: 'In Progress', value: ["journey_started", "trip_in_progress", "trip_ended"] },
   { label: 'Completed',   value: 'completed' },
   { label: 'Cancelled',   value: 'cancelled' },
 ];
@@ -58,7 +58,7 @@ const StatusChip = ({ status }) => {
 // Booking Card
 // ─────────────────────────────────────────────────────────────────────────────
 const BookingCard = ({ booking }) => {
-  const isActive = ['pending', 'assigned', 'in_progress'].includes(booking.status);
+  const isActive = ['pending', 'assigned', 'trip_in_progress'].includes(booking.status);
 
   const handlePress = () => {
     if (isActive) {
@@ -203,7 +203,8 @@ export default function HistoryScreen() {
           keyExtractor={(f) => String(f.value)}
           contentContainerStyle={styles.filterList}
           renderItem={({ item: f }) => {
-            const selected = activeFilter === f.value;
+            const selected = isSameFilter(activeFilter, f.value);
+            const dotStatus = Array.isArray(f.value) ? f.value[0] : f.value;
             return (
               <TouchableOpacity
                 style={[styles.filterTab, selected && styles.filterTabSelected]}
@@ -214,7 +215,7 @@ export default function HistoryScreen() {
                   <View
                     style={[
                       styles.filterDot,
-                      { backgroundColor: STATUS_CONFIG[f.value]?.text ?? colors.primary },
+                      { backgroundColor: STATUS_CONFIG[dotStatus]?.text ?? colors.primary },
                     ]}
                   />
                 )}
