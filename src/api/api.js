@@ -5,7 +5,8 @@ const api = axios.create({
   // baseURL: 'http://192.168.1.10:8000', // change to your backend IP
   // baseURL: 'http://10.37.228.228:8000', // Bangalore mobile data
   // baseURL: 'http://192.168.1.7:8000', // Bangalore home wifi
-  baseURL: 'https://smartapi.studiohalfx.com', // change to your backend IP
+  // baseURL: 'https://smartapi.studiohalfx.com', // change to your backend IP
+  baseURL: 'https://testapi.smartcabz.com', // pre-production backend
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

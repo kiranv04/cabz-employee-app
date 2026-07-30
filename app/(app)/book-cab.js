@@ -25,7 +25,7 @@ import { colors } from '../../src/constants/colors';
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const MAX_SCHEDULE_DAYS = 7;
+const MAX_SCHEDULE_DAYS = 20;
 
 const TRIP_TYPE_META = {
   local:          { icon: 'car-outline',       description: 'Within city limits' },
