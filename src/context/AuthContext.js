@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { registerLogoutHandler } from '../api/authEvents';
+import { router } from 'expo-router';
 
 const TOKEN_KEY = 'employee_auth_token';
 const USER_KEY = 'employee_user_data';
@@ -20,7 +21,7 @@ export function AuthProvider({ children }) {
         if (storedToken && storedUser) {
           const parsedUser = JSON.parse(storedUser);
           setToken(storedToken);
-          setDriver(parsedUser);
+          setUser(parsedUser);
         }
       } catch (e) {
         console.error('Failed to load session', e);
@@ -57,7 +58,7 @@ export function AuthProvider({ children }) {
       // This ensures the user is logged out in the app's state,
       // even if SecureStore throws an error.
       setToken(null);
-      setDriver(null);
+      setUser(null);
     }
   };
 
