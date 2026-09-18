@@ -169,9 +169,11 @@ export default function LoginScreen() {
         </View>
 
         {/* Footer */}
-        <Text style={styles.footer}>
-          Contact your administrator if you need access.
-        </Text>
+        <TouchableOpacity onPress={() => router.push('/(auth)/signup')} disabled={mutation.isPending}>
+          <Text style={styles.footer}>
+            New here? <Text style={styles.footerLink}>Create an account</Text>
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -301,5 +303,9 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     fontSize: 13,
     marginTop: 32,
+  },
+  footerLink: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

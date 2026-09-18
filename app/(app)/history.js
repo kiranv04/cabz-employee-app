@@ -33,6 +33,15 @@ const FILTERS = [
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+const isSameFilter = (a, b) => {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const arrA = Array.isArray(a) ? a : [a];
+    const arrB = Array.isArray(b) ? b : [b];
+    return arrA.length === arrB.length && arrA.every((v, i) => v === arrB[i]);
+  }
+  return a === b;
+};
+
 const formatDateTime = (iso) => {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('en-IN', {

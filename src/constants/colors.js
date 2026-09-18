@@ -18,6 +18,12 @@ export const colors = {
   white: '#FFFFFF',
   black: '#000000',
 
+  textPrimary: '#111827',   // gray900 — primary text
+  textSecondary: '#6B7280', // gray500 — secondary text
+  textHint: '#9CA3AF',      // gray400 — placeholder / hint text
+  background: '#F8F9FB',    // screen background
+  error: '#EF4444',         // red 500 — inline error text/icons
+
   // Status colors for booking chips
   status: {
     pending: { bg: '#FEF3C7', text: '#92400E' },

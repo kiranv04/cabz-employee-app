@@ -12,13 +12,14 @@
       "bundleIdentifier": "com.cabz.employee",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to set your pickup point.",
-        "NSLocationAlwaysUsageDescription": "We need your location to track your ride."
+        "NSLocationAlwaysUsageDescription": "We need your location to track your ride.",
+        "NSFaceIDUsageDescription": "SmartCabz uses Face ID to quickly and securely unlock the app."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0AA5FD"
       },
       "package": "com.cabz.employee",
       "permissions": [
@@ -34,7 +35,7 @@
       [
         "expo-splash-screen",          
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/splash.png",
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }

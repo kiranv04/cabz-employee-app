@@ -1,8 +1,5 @@
 import api from './api';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PLACEHOLDER ENDPOINTS — update base paths before wiring up the UI
-// ─────────────────────────────────────────────────────────────────────────────
 const ENDPOINTS = {
   CREATE:        '/api/mobile/employees/bookings',           // POST
   LIST:          '/api/mobile/employees/bookings',           // GET  ?page=&status=
@@ -12,11 +9,9 @@ const ENDPOINTS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Create a new booking
-//
-// Required by backend (employee context):
-//   trip_type, pickup_address, drop_address, scheduled_at, vehicle_type_id
-//   employee_id, company_id, cost_center_id  ← caller pulls from auth user
+// Create a new booking — see buildBookingPayload() in ../hooks/useBookings.js
+// for the exact payload shape (self vs. cost-center-manager booking for
+// another employee).
 //
 // Conditionally required:
 //   estimated_days + estimated_kms  → when trip_type === 'outstation'
@@ -65,10 +60,18 @@ export const cancelBooking = async (id) => {
 // Returns: [{ id, name, description?, icon? }]
 // ─────────────────────────────────────────────────────────────────────────────
 export const getVehicleTypes = async (companyId) => {
-  // console.log('getVehicleTypes called with companyId:', companyId); // ← does this print?
-    const response = await api.get(ENDPOINTS.VEHICLE_TYPES(companyId));
-    // console.log('Full response:', response);
-    // console.log('Response data:', response.data);
-    return response.data;
+  const response = await api.get(ENDPOINTS.VEHICLE_TYPES(companyId));
+  return response.data;
+};
 
+// ─────────────────────────────────────────────────────────────────────────────
+// List employees in a branch a cost-center-manager manages — powers the
+// "book for" picker in the CCM booking flow (project CLAUDE.md Item 8).
+// Reuses the same endpoint the admin webapp's CCM pages use — role-gated
+// server-side (role:cost-center-manager), works the same over a mobile
+// Sanctum bearer token as it does over the webapp's session cookie.
+// ─────────────────────────────────────────────────────────────────────────────
+export const getBranchEmployees = async (branchId) => {
+  const { data } = await api.get(`/api/ccm/branch/${branchId}/employees`);
+  return data; // { data: employee[] }
 };

@@ -2,13 +2,15 @@ import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import LoadingScreen from '../../src/components/LoadingScreen';
+import BiometricLockScreen from '../../src/components/BiometricLockScreen';
 import { colors } from '../../src/constants/colors';
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, biometricLocked } = useAuth();
 
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
+  if (biometricLocked) return <BiometricLockScreen />;
 
   return (
     <Tabs
