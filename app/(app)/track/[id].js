@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     color: colors.error ?? '#EF4444',
   },
   otp: {
-    fontsize: 14,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
   }

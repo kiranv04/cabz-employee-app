@@ -19,20 +19,13 @@ import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useAuth } from '../../src/context/AuthContext';
-import { useVehicleTypes, useCreateBooking, buildBookingPayload, TRIP_TYPES } from '../../src/hooks/useBookings';
+import { useVehicleTypes, useCreateBooking, useBranchEmployees, buildBookingPayload } from '../../src/hooks/useBookings';
 import { colors } from '../../src/constants/colors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 const MAX_SCHEDULE_DAYS = 20;
-
-const TRIP_TYPE_META = {
-  local:          { icon: 'car-outline',       description: 'Within city limits' },
-  outstation:     { icon: 'map-outline',        description: 'Multi-day intercity trip' },
-  airport_pickup: { icon: 'airplane-outline',   description: 'Pick up from airport' },
-  airport_drop:   { icon: 'airplane-outline',   description: 'Drop to airport' },
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small reusable sub-components
@@ -61,20 +54,31 @@ const formatLocalISO = (date) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function BookCabScreen() {
   const { user } = useAuth();
-  const companyId = user?.employee.owner_id;
+  const companyId = user?.employee?.company_id ?? user?.employee?.owner_id;
   const { data: vehicleTypes = [], isLoading: loadingVehicles } = useVehicleTypes(companyId);
   const { mutate: createBooking, isPending: isSubmitting } = useCreateBooking();
-  
+
+  // ── Cost-center-manager: booking on behalf of another employee ──────────────
+  // (project CLAUDE.md Item 8) — mirrors the admin webapp's CCMCreateBooking.jsx.
+  const isCcm = user?.role === 'cost-center-manager';
+  const managedBranches = user?.managed_branches || [];
+  const [selectedBranchId, setSelectedBranchId]     = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const { data: branchEmployees = [], isLoading: loadingEmployees } = useBranchEmployees(
+    isCcm ? selectedBranchId : null
+  );
+
   // console.log('Veh types', vehicleTypes); // Debug log to inspect user data structure
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  const [tripType, setTripType]               = useState(null);
+  // Duty/trip type is an admin-side decision, not chosen by the employee —
+  // the booking is always created without one and the backend defaults it
+  // to 'local' server-side (BookingController::employeeStore()), same as any
+  // other admin-created booking left undecided at creation time.
   const [vehicleTypeId, setVehicleTypeId]     = useState(null);
   const [pickupAddress, setPickupAddress]     = useState('');
   const [dropAddress, setDropAddress]         = useState('');
   const [scheduledAt, setScheduledAt]         = useState(null);  // JS Date
-  const [estimatedDays, setEstimatedDays]     = useState('');
-  const [estimatedKms, setEstimatedKms]       = useState('');
   const [instructions, setInstructions]       = useState('');
   const [notes, setNotes]                     = useState('');
 
@@ -88,17 +92,19 @@ export default function BookCabScreen() {
   // Reset form every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      setTripType(null);
       setVehicleTypeId(null);
       setPickupAddress('');
       setDropAddress('');
       setScheduledAt(null);
-      setEstimatedDays('');
-      setEstimatedKms('');
       setInstructions('');
       setNotes('');
       setErrors({});
-    }, [])
+      // CCM booking-for selection — auto-pick the branch when the CCM only
+      // manages one, matching the web flow's single-branch auto-select.
+      setSelectedBranchId(managedBranches.length === 1 ? managedBranches[0].id : null);
+      setSelectedEmployeeId(null);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [managedBranches.length])
   );
 
   // ── GPS pickup ──────────────────────────────────────────────────────────────
@@ -192,17 +198,14 @@ export default function BookCabScreen() {
   // ── Validation ───────────────────────────────────────────────────────────────
   const validate = () => {
     const e = {};
-    if (!tripType)         e.tripType       = 'Please select a trip type.';
+    if (isCcm) {
+      if (!selectedBranchId)    e.branch   = 'Please select a branch.';
+      if (!selectedEmployeeId)  e.employee = 'Please select who this booking is for.';
+    }
     if (!vehicleTypeId)    e.vehicleTypeId  = 'Please select a vehicle type.';
     if (!pickupAddress.trim()) e.pickupAddress = 'Pickup address is required.';
     if (!dropAddress.trim())   e.dropAddress   = 'Drop address is required.';
     if (!scheduledAt)          e.scheduledAt   = 'Please select date and time.';
-    if (tripType === 'outstation') {
-      if (!estimatedDays || isNaN(Number(estimatedDays)) || Number(estimatedDays) < 1)
-        e.estimatedDays = 'Enter number of days (min 1).';
-      if (!estimatedKms || isNaN(Number(estimatedKms)) || Number(estimatedKms) < 1)
-        e.estimatedKms  = 'Enter estimated kilometres (min 1).';
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -213,16 +216,15 @@ export default function BookCabScreen() {
     if (!validate()) return;
 
     const form = {
-      trip_type:       tripType,
       vehicle_type_id: vehicleTypeId,
       pickup_address:  pickupAddress.trim(),
       drop_address:    dropAddress.trim(),
       scheduled_at:    formatLocalISO(scheduledAt),
       instructions:    instructions.trim(),
       notes:           notes.trim(),
-      ...(tripType === 'outstation' && {
-        estimated_days: Number(estimatedDays),
-        estimated_kms:  Number(estimatedKms),
+      ...(isCcm && {
+        branch_id:   selectedBranchId,
+        employee_id: selectedEmployeeId,
       }),
     };
 
@@ -271,92 +273,89 @@ export default function BookCabScreen() {
         </View>
 
         {/* ── Booking for card ── */}
-        <View style={styles.passengerCard}>
-          <View style={styles.passengerAvatar}>
-            <Text style={styles.passengerAvatarText}>
-              {user?.name?.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.passengerInfo}>
-            <Text style={styles.passengerName}>{user?.name}</Text>
-            <Text style={styles.passengerMeta}>
-              {user?.employee?.position} · {user?.employee?.department}
-            </Text>
-          </View>
-          <View style={styles.passengerBadge}>
-            <Text style={styles.passengerBadgeText}>Booking for self</Text>
-          </View>
-        </View>
-
-        {/* ── Trip Type ── */}
-        <View style={styles.section}>
-          <SectionLabel required>Trip Type</SectionLabel>
-          <View style={styles.tripTypeGrid}>
-            {TRIP_TYPES.map((t) => {
-              const meta = TRIP_TYPE_META[t.value];
-              const selected = tripType === t.value;
-              return (
-                <TouchableOpacity
-                  key={t.value}
-                  style={[styles.tripTypeCard, selected && styles.tripTypeCardSelected]}
-                  onPress={() => {
-                    setTripType(t.value);
-                    setErrors((e) => ({ ...e, tripType: undefined }));
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={meta.icon}
-                    size={22}
-                    color={selected ? colors.primary : colors.textSecondary}
-                  />
-                  <Text style={[styles.tripTypeLabel, selected && styles.tripTypeLabelSelected]}>
-                    {t.label}
-                  </Text>
-                  <Text style={[styles.tripTypeDesc, selected && styles.tripTypeDescSelected]}>
-                    {meta.description}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <FieldError message={errors.tripType} />
-        </View>
-
-        {/* ── Outstation extras ── */}
-        {tripType === 'outstation' && (
+        {isCcm ? (
           <View style={styles.section}>
-            <View style={styles.row}>
-              <View style={styles.halfField}>
-                <SectionLabel required>Est. Days</SectionLabel>
-                <TextInput
-                  style={[styles.input, errors.estimatedDays && styles.inputError]}
-                  placeholder="e.g. 2"
-                  placeholderTextColor={colors.textHint}
-                  keyboardType="number-pad"
-                  value={estimatedDays}
-                  onChangeText={(v) => {
-                    setEstimatedDays(v);
-                    setErrors((e) => ({ ...e, estimatedDays: undefined }));
-                  }}
-                />
-                <FieldError message={errors.estimatedDays} />
-              </View>
-              <View style={styles.halfField}>
-                <SectionLabel required>Est. Kilometres</SectionLabel>
-                <TextInput
-                  style={[styles.input, errors.estimatedKms && styles.inputError]}
-                  placeholder="e.g. 350"
-                  placeholderTextColor={colors.textHint}
-                  keyboardType="number-pad"
-                  value={estimatedKms}
-                  onChangeText={(v) => {
-                    setEstimatedKms(v);
-                    setErrors((e) => ({ ...e, estimatedKms: undefined }));
-                  }}
-                />
-                <FieldError message={errors.estimatedKms} />
-              </View>
+            {managedBranches.length > 1 && (
+              <>
+                <SectionLabel required>Branch</SectionLabel>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehicleScroll}>
+                  {managedBranches.map((b) => {
+                    const selected = selectedBranchId === b.id;
+                    return (
+                      <TouchableOpacity
+                        key={b.id}
+                        style={[styles.vehicleChip, selected && styles.vehicleChipSelected]}
+                        onPress={() => {
+                          setSelectedBranchId(b.id);
+                          setSelectedEmployeeId(null);
+                          setErrors((e) => ({ ...e, branch: undefined }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.vehicleChipText, selected && styles.vehicleChipTextSelected]}>
+                          {b.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <FieldError message={errors.branch} />
+              </>
+            )}
+
+            <View style={{ marginTop: managedBranches.length > 1 ? 16 : 0 }}>
+              <SectionLabel required>Booking For</SectionLabel>
+              {!selectedBranchId ? (
+                <Text style={styles.helperText}>Select a branch first.</Text>
+              ) : loadingEmployees ? (
+                <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
+              ) : branchEmployees.length === 0 ? (
+                <Text style={styles.helperText}>No active employees found in this branch.</Text>
+              ) : (
+                <View style={{ gap: 8 }}>
+                  {branchEmployees.map((emp) => {
+                    const selected = selectedEmployeeId === emp.id;
+                    return (
+                      <TouchableOpacity
+                        key={emp.id}
+                        style={[styles.passengerCard, { marginBottom: 0 }, selected && styles.tripTypeCardSelected]}
+                        onPress={() => {
+                          setSelectedEmployeeId(emp.id);
+                          setErrors((e) => ({ ...e, employee: undefined }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.passengerAvatar}>
+                          <Text style={styles.passengerAvatarText}>{emp.name?.charAt(0).toUpperCase()}</Text>
+                        </View>
+                        <View style={styles.passengerInfo}>
+                          <Text style={styles.passengerName}>{emp.name}</Text>
+                          <Text style={styles.passengerMeta}>{emp.position} · {emp.department}</Text>
+                        </View>
+                        {selected && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+              <FieldError message={errors.employee} />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.passengerCard}>
+            <View style={styles.passengerAvatar}>
+              <Text style={styles.passengerAvatarText}>
+                {user?.name?.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.passengerInfo}>
+              <Text style={styles.passengerName}>{user?.name}</Text>
+              <Text style={styles.passengerMeta}>
+                {user?.employee?.position} · {user?.employee?.department}
+              </Text>
+            </View>
+            <View style={styles.passengerBadge}>
+              <Text style={styles.passengerBadgeText}>Booking for self</Text>
             </View>
           </View>
         )}
@@ -662,43 +661,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // ── Trip type grid ──
-  tripTypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  tripTypeCard: {
-    width: '47%',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
+  // ── Selected-state border/bg, shared with the CCM employee picker ──
   tripTypeCardSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight ,
   },
-  tripTypeLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: 8,
-    marginBottom: 2,
-  },
-  tripTypeLabelSelected: { color: colors.primary },
-  tripTypeDesc: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    lineHeight: 14,
-  },
-  tripTypeDescSelected: { color: colors.primary },
 
   // ── Vehicle type horizontal scroll ──
   vehicleScroll: { marginTop: 4 },
@@ -786,10 +753,6 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: colors.error ?? '#EF4444' },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
-
-  // ── Outstation row ──
-  row: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
 
   // ── Date picker button ──
   datePickerBtn: {

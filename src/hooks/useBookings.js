@@ -5,6 +5,7 @@ import {
   getBooking,
   cancelBooking,
   getVehicleTypes,
+  getBranchEmployees,
 } from '../api/bookingApi';
 import { useAuth } from '../context/AuthContext';
 
@@ -33,6 +34,21 @@ export const useVehicleTypes = (companyId) => {
     staleTime: 10 * 60 * 1000,
     enabled:  !!companyId,   
     select: (data) => data.data ?? [],
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useBranchEmployees
+// Employees in a branch a cost-center-manager manages — feeds the "book for"
+// picker on the booking form when the logged-in user is a CCM.
+// ─────────────────────────────────────────────────────────────────────────────
+export const useBranchEmployees = (branchId) => {
+  return useQuery({
+    queryKey: ['branchEmployees', branchId],
+    queryFn:  () => getBranchEmployees(branchId),
+    select:   (data) => data.data ?? [],
+    enabled:  !!branchId,
+    staleTime: 60 * 1000,
   });
 };
 
@@ -174,45 +190,45 @@ export const canCancelBooking = (status) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRIP TYPE OPTIONS — flat_rate excluded (admin only)
-// ─────────────────────────────────────────────────────────────────────────────
-export const TRIP_TYPES = [
-  { value: 'local',          label: 'Local' },
-  { value: 'outstation',     label: 'Outstation' },
-  { value: 'airport_pickup', label: 'Airport Pickup' },
-  { value: 'airport_drop',   label: 'Airport Drop' },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
 // buildBookingPayload
-// Assembles the API payload from form state + auth user.
+// Assembles the API payload from form state + auth user. Cost centers were
+// removed backend-wide (project CLAUDE.md Item 1) — company/location are
+// derived from the employee's branch, not a cost center, and the backend
+// resolves location_id from branch_id server-side so the app never sends it.
+//
+// Duty/trip type is never sent from here — it's an admin-side decision, not
+// the employee's; the backend defaults it to 'local' (BookingController::
+// employeeStore()) and an admin corrects it later if needed.
+//
+// A cost-center-manager (project CLAUDE.md Item 8) books on behalf of another
+// employee: form.branch_id/form.employee_id come from the branch/employee
+// picker instead of the caller's own record, and the backend fills in
+// passenger_name/mobile from that employee.
 // ─────────────────────────────────────────────────────────────────────────────
 export const buildBookingPayload = (user, form) => {
-  const employee   = user.employee;
-  const costCenter = employee.cost_center;
-  const company    = costCenter.branch.company;
-  const location_id = costCenter.branch.location;
+  const employee = user.employee;
+  const isCcm     = user.role === 'cost-center-manager';
 
   const payload = {
     booking_type:    'corporate',
-    company_id:      company.id,
-    cost_center_id:  costCenter.id,
-    employee_id:     employee.id,
-    location_id:     location_id,
-    passenger_name:   user.name,
-    passenger_mobile: employee.mobile,
-    trip_type:       form.trip_type,
+    company_id:      employee?.company_id ?? employee?.branch?.company?.id,
     vehicle_type_id: form.vehicle_type_id,
     pickup_address:  form.pickup_address,
     drop_address:    form.drop_address,
     scheduled_at:    form.scheduled_at,
     ...(form.instructions    && { instructions:  form.instructions }),
     ...(form.notes           && { notes:         form.notes }),
-    ...(form.trip_type === 'outstation' && {
-      estimated_days: form.estimated_days,
-      estimated_kms:  form.estimated_kms,
-    }),
   };
+
+  if (isCcm) {
+    payload.branch_id   = form.branch_id;
+    payload.employee_id = form.employee_id;
+  } else {
+    payload.employee_id      = employee?.id;
+    payload.branch_id        = employee?.branch_id;
+    payload.passenger_name   = user.name;
+    payload.passenger_mobile = employee?.mobile;
+  }
 
   return payload;
 };
