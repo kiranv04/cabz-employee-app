@@ -132,7 +132,8 @@ const EmptyState = ({ activeFilter }) => (
     <Text style={styles.emptyTitle}>No bookings found</Text>
     <Text style={styles.emptySub}>
       {activeFilter
-        ? `You have no ${activeFilter.replace('_', ' ')} bookings.`
+        // activeFilter can be an array (the "In Progress" tab) — use the tab's label.
+        ? `You have no ${(FILTERS.find((f) => isSameFilter(f.value, activeFilter))?.label ?? '').toLowerCase()} bookings.`
         : 'Your booking history will appear here.'}
     </Text>
   </View>

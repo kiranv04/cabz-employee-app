@@ -69,6 +69,18 @@ const PendingState = ({ booking }) => (
   </View>
 );
 
+// ── Trip OTP — the driver asks for it at the start of EVERY leg (including
+// after a pause/resume), so it's shown on every live-trip card, not just
+// the assigned one. ────────────────────────────────────────────────────────
+const OtpRow = ({ booking }) => (
+  <View style={styles.waitMeta}>
+    <View style={styles.waitMetaRow}>
+      <Text style={styles.otp}>OTP for driver: </Text>
+      <Text style={styles.otp}>{booking.employee?.otp ?? '—'}</Text>
+    </View>
+  </View>
+);
+
 // ── Assigned state: driver info shown, no live map yet ───────────────────────
 const AssignedState = ({ booking }) => {
   // console.log('Assigned booking details:', booking); // Debug log to inspect booking data structure
@@ -84,12 +96,14 @@ const AssignedState = ({ booking }) => {
         </View>
         <View style={styles.driverInfo}>
           <Text style={styles.driverName}>{driver?.name ?? '—'}</Text>
-          {driver.mobile && (
+          {driver?.mobile && (
             <Text style={styles.driverMeta}>{driver.mobile}</Text>
           )}
-          <Text style={styles.driverMeta}>Driver assigned</Text>
+          <Text style={styles.driverMeta}>
+            {booking.status === 'journey_started' ? 'Driver is on the way' : 'Driver assigned'}
+          </Text>
         </View>
-        <StatusChip status="assigned" />
+        <StatusChip status={booking.status} />
       </View>
 
       {vehicle && (
@@ -120,16 +134,44 @@ const AssignedState = ({ booking }) => {
           <Text style={styles.waitMetaText}>{formatDateTime(booking.scheduled_at)}</Text>
         </View>
       </View>
-      <View style={styles.waitMeta}>
-        <View style={styles.waitMetaRow}>
-          <Text style={styles.otp}>OTP for driver: </Text>
-          <Text style={styles.otp}>{booking.employee.otp}</Text>
-        </View>
-      </View>
+      <OtpRow booking={booking} />
       <View style={styles.mapComingSoon}>
         <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
         <Text style={styles.mapComingSoonText}>Live tracking coming soon</Text>
       </View>
+    </View>
+  );
+};
+
+// ── Paused state: leg finished, hire continues with the same driver ──────────
+const PausedState = ({ booking }) => {
+  const driver  = booking.driver;
+  const vehicle = booking.vehicle;
+
+  return (
+    <View style={styles.assignedCard}>
+      <View style={styles.driverRow}>
+        <View style={styles.driverAvatar}>
+          <Ionicons name="person" size={24} color="#fff" />
+        </View>
+        <View style={styles.driverInfo}>
+          <Text style={styles.driverName}>{driver?.name ?? '—'}</Text>
+          {driver?.mobile && (
+            <Text style={styles.driverMeta}>{driver.mobile}</Text>
+          )}
+          <Text style={styles.driverMeta}>Trip paused — your driver will continue shortly</Text>
+        </View>
+        <StatusChip status="paused" />
+      </View>
+
+      {vehicle && (
+        <View style={styles.vehicleRow}>
+          <Ionicons name="car-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.vehicleText}>· {vehicle.license_plate}</Text>
+        </View>
+      )}
+
+      <OtpRow booking={booking} />
     </View>
   );
 };
@@ -206,6 +248,8 @@ const InProgressState = ({ booking }) => {
           </View>
         )}
 
+        <OtpRow booking={booking} />
+
         <View style={styles.divider} />
 
         {/* Route */}
@@ -267,6 +311,8 @@ const InProgressState = ({ booking }) => {
 const DoneState = ({ booking }) => {
   const cfg = STATUS_CONFIG[booking.status];
   const isDone = booking.status === 'completed';
+  // trip_ended = the leg is over but the driver hasn't closed or paused the hire yet.
+  const isEnded = booking.status === 'trip_ended';
 
   return (
     <View style={styles.doneCard}>
@@ -274,12 +320,14 @@ const DoneState = ({ booking }) => {
         <Ionicons name={cfg.icon} size={36} color={cfg.text} />
       </View>
       <Text style={styles.doneTitle}>
-        {isDone ? 'Trip Completed' : 'Booking Cancelled'}
+        {isDone ? 'Trip Completed' : isEnded ? 'Trip Ended' : 'Booking Cancelled'}
       </Text>
       <Text style={styles.doneSubtitle}>
         {isDone
           ? 'Your trip has been completed successfully.'
-          : 'This booking has been cancelled.'}
+          : isEnded
+            ? 'This leg has ended. Your driver will close or continue the booking shortly.'
+            : 'This booking has been cancelled.'}
       </Text>
 
       <View style={styles.waitMeta}>
@@ -403,7 +451,8 @@ export default function TrackScreen() {
           }
         >
           {status === 'pending'  && <PendingState  booking={booking} />}
-          {status === 'assigned' && <AssignedState booking={booking} />}
+          {(status === 'assigned' || status === 'journey_started') && <AssignedState booking={booking} />}
+          {status === 'paused'   && <PausedState   booking={booking} />}
           {isDone                && <DoneState     booking={booking} />}
         </ScrollView>
       )}

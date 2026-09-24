@@ -33,6 +33,7 @@
 export const ENV = {
   /** Base URL for all API calls. */
   API_BASE_URL: 'https://smartapi.studiohalfx.com',
+  // htfh tjkr htpr xzsv - kiranv04@gmail.com => app key to use to test employee self onboard flow.
 
   /** Axios request timeout in milliseconds. */
   API_TIMEOUT: 15000,
