@@ -147,11 +147,11 @@ export default function TripDetailScreen() {
             label="Vehicle Type"
             value={vehicleType.name}
           /> */}
-          {/* <DetailRow
+          <DetailRow
             icon="calendar-outline"
             label="Scheduled"
             value={formatDateTime(booking.scheduled_at)}
-          />   */}
+          />
           {booking.trip_type === 'outstation' && (
             <>
               <DetailRow

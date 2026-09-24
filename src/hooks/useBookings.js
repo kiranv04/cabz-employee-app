@@ -127,7 +127,11 @@ export const useBooking = (id) => {
     enabled:  !!id,
     staleTime: 10 * 1000,
     refetchInterval: (query) => {
-      const status = query.state.data?.status;
+      // query.state.data is the raw API response ({ data: booking }) — `select`
+      // isn't applied here. Reading `.status` off the envelope was always
+      // undefined, which stopped polling immediately, so the screen never
+      // picked up status changes (e.g. paused → assigned) on its own.
+      const status = query.state.data?.data?.status;
       // Stop polling once the ride is done
       if (!status || status === 'completed' || status === 'cancelled') return false;
       return 10 * 1000; // Poll every 10s while active
@@ -243,6 +247,7 @@ export const STATUS_CONFIG = {
   journey_started:  { label: "Journey Started", text: "#4f46e5", bg: "#eef2ff", icon: 'navigate-outline'  },
   trip_in_progress: { label: 'In Progress', bg: '#D1FAE5', text: '#065F46', icon: 'navigate-outline' },
   trip_ended:       { label: "Trip Ended", text: "#d97706", bg: "#fffbeb", icon:'checkmark-circle-outline' },
+  paused:           { label: "Paused", text: "#b45309", bg: "#fef3c7", icon: 'pause-circle-outline' },
   completed:   { label: 'Completed',   bg: '#F3F4F6', text: '#374151', icon: 'checkmark-circle-outline' },
   cancelled:   { label: 'Cancelled',   bg: '#FEE2E2', text: '#991B1B', icon: 'close-circle-outline' },
 };

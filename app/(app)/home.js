@@ -196,8 +196,8 @@ export default function HomeScreen() {
   } = useRecentBookings();
 
   const employee   = user?.employee;
-  const costCenter = employee?.cost_center;
-  const company    = costCenter?.branch?.company;
+  const branch     = employee?.branch;
+  const company    = employee?.company ?? branch?.company; // direct link first — branch may lack one (legacy data)
 
   // Pull-to-refresh invalidates both queries
   const [refreshing, setRefreshing] = useState(false);
@@ -229,7 +229,7 @@ export default function HomeScreen() {
         <View style={styles.topBarLeft}>
           <Ionicons name="business-outline" size={13} color={colors.primary} style={{ marginRight: 5 }} />
           <Text style={styles.topBarText} numberOfLines={1}>
-            {company?.name ?? '—'} · {costCenter?.name ?? '—'}
+            {company?.name ?? '—'} · {branch?.name ?? '—'}
           </Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/(app)/profile')}>

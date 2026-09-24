@@ -67,6 +67,21 @@ export default function BookCabScreen() {
   const { data: branchEmployees = [], isLoading: loadingEmployees } = useBranchEmployees(
     isCcm ? selectedBranchId : null
   );
+  // Only the CCM's own name is shown as a card; everyone else is picked from
+  // a searchable dropdown (a branch can have hundreds of employees).
+  const selfEmployeeId = user?.employee?.id ?? null;
+  const [employeeSearch, setEmployeeSearch]     = useState('');
+  const [showEmployeeList, setShowEmployeeList] = useState(false);
+  const filteredEmployees = branchEmployees.filter(
+    (emp) => emp.id !== selfEmployeeId
+      && emp.name?.toLowerCase().includes(employeeSearch.trim().toLowerCase())
+  );
+  const selectEmployee = (id, searchText) => {
+    setSelectedEmployeeId(id);
+    setEmployeeSearch(searchText);
+    setShowEmployeeList(false);
+    setErrors((e) => ({ ...e, employee: undefined }));
+  };
 
   // console.log('Veh types', vehicleTypes); // Debug log to inspect user data structure
 
@@ -103,6 +118,8 @@ export default function BookCabScreen() {
       // manages one, matching the web flow's single-branch auto-select.
       setSelectedBranchId(managedBranches.length === 1 ? managedBranches[0].id : null);
       setSelectedEmployeeId(null);
+      setEmployeeSearch('');
+      setShowEmployeeList(false);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [managedBranches.length])
   );
@@ -288,6 +305,8 @@ export default function BookCabScreen() {
                         onPress={() => {
                           setSelectedBranchId(b.id);
                           setSelectedEmployeeId(null);
+                          setEmployeeSearch('');
+                          setShowEmployeeList(false);
                           setErrors((e) => ({ ...e, branch: undefined }));
                         }}
                         activeOpacity={0.7}
@@ -309,33 +328,70 @@ export default function BookCabScreen() {
                 <Text style={styles.helperText}>Select a branch first.</Text>
               ) : loadingEmployees ? (
                 <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
-              ) : branchEmployees.length === 0 ? (
+              ) : branchEmployees.length === 0 && !selfEmployeeId ? (
                 <Text style={styles.helperText}>No active employees found in this branch.</Text>
               ) : (
                 <View style={{ gap: 8 }}>
-                  {branchEmployees.map((emp) => {
-                    const selected = selectedEmployeeId === emp.id;
-                    return (
-                      <TouchableOpacity
-                        key={emp.id}
-                        style={[styles.passengerCard, { marginBottom: 0 }, selected && styles.tripTypeCardSelected]}
-                        onPress={() => {
-                          setSelectedEmployeeId(emp.id);
-                          setErrors((e) => ({ ...e, employee: undefined }));
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.passengerAvatar}>
-                          <Text style={styles.passengerAvatarText}>{emp.name?.charAt(0).toUpperCase()}</Text>
-                        </View>
-                        <View style={styles.passengerInfo}>
-                          <Text style={styles.passengerName}>{emp.name}</Text>
-                          <Text style={styles.passengerMeta}>{emp.position} · {emp.department}</Text>
-                        </View>
-                        {selected && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {/* The CCM themself — the one employee shown as a card. */}
+                  {selfEmployeeId && (
+                    <TouchableOpacity
+                      style={[styles.passengerCard, { marginBottom: 0 }, selectedEmployeeId === selfEmployeeId && styles.tripTypeCardSelected]}
+                      onPress={() => selectEmployee(selfEmployeeId, '')}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.passengerAvatar}>
+                        <Text style={styles.passengerAvatarText}>{user?.name?.charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.passengerInfo}>
+                        <Text style={styles.passengerName}>{user?.name}</Text>
+                        <Text style={styles.passengerMeta}>Book for myself</Text>
+                      </View>
+                      {selectedEmployeeId === selfEmployeeId && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Everyone else — searchable dropdown. */}
+                  <View style={styles.searchWrapper}>
+                    <Ionicons name="search-outline" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Search employee by name"
+                      placeholderTextColor={colors.textHint}
+                      value={employeeSearch}
+                      onChangeText={(t) => {
+                        setEmployeeSearch(t);
+                        setShowEmployeeList(true);
+                        if (selectedEmployeeId && selectedEmployeeId !== selfEmployeeId) setSelectedEmployeeId(null);
+                      }}
+                      onFocus={() => setShowEmployeeList(true)}
+                    />
+                    {selectedEmployeeId && selectedEmployeeId !== selfEmployeeId && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                    )}
+                  </View>
+                  {showEmployeeList && (
+                    <View style={styles.dropdownList}>
+                      {filteredEmployees.length === 0 ? (
+                        <Text style={styles.dropdownEmpty}>No matching employees.</Text>
+                      ) : (
+                        filteredEmployees.slice(0, 8).map((emp) => (
+                          <TouchableOpacity
+                            key={emp.id}
+                            style={styles.dropdownItem}
+                            onPress={() => selectEmployee(emp.id, emp.name)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.dropdownItemName}>{emp.name}</Text>
+                            {(emp.position || emp.department) && (
+                              <Text style={styles.dropdownItemMeta}>
+                                {[emp.position, emp.department].filter(Boolean).join(' · ')}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </View>
+                  )}
                 </View>
               )}
               <FieldError message={errors.employee} />
@@ -472,7 +528,7 @@ export default function BookCabScreen() {
             <Ionicons name="chevron-down-outline" size={16} color={colors.textHint} />
           </TouchableOpacity>
           <Text style={styles.helperText}>
-            You can schedule up to 7 days in advance.
+            You can schedule up to 20 days in advance.
           </Text>
           <FieldError message={errors.scheduledAt} />
         </View>
@@ -669,6 +725,32 @@ const styles = StyleSheet.create({
 
   // ── Vehicle type horizontal scroll ──
   vehicleScroll: { marginTop: 4 },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+  },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: colors.textPrimary },
+  dropdownList: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  dropdownItemMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  dropdownEmpty:    { padding: 14, fontSize: 13, color: colors.textSecondary },
   vehicleChip: {
     flexDirection: 'row',
     alignItems: 'center',

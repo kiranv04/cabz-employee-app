@@ -103,12 +103,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   const unlockBiometric = useCallback(async () => {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock SmartCabz',
-      disableDeviceFallback: false,
-    });
-    if (result.success) setBiometricLocked(false);
-    return result;
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock SmartCabz',
+        disableDeviceFallback: false,
+      });
+      if (result.success) setBiometricLocked(false);
+      return result;
+    } catch (e) {
+      return { success: false, error: 'unavailable' };
+    }
   }, []);
 
   const setBiometricEnabled = useCallback(async (value) => {

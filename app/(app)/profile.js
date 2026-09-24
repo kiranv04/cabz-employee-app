@@ -16,9 +16,8 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
 
   const employee = user?.employee;
-  const costCenter = employee?.cost_center;
-  const branch = costCenter?.branch;
-  const company = branch?.company;
+  const branch = employee?.branch;
+  const company = employee?.company ?? branch?.company; // direct link first — branch may lack one (legacy data)
 
   const handleLogout = () => {
     Alert.alert(
@@ -91,11 +90,6 @@ export default function ProfileScreen() {
             icon="briefcase-outline"
             label="Department"
             value={employee?.department || '—'}
-          />
-          <InfoRow
-            icon="people-outline"
-            label="Cost Center"
-            value={costCenter?.name || '—'}
           />
           <InfoRow
             icon="git-branch-outline"
