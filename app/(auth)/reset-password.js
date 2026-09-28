@@ -34,7 +34,7 @@ export default function ResetPasswordScreen() {
         setError(res.error);
         return;
       }
-      // Backend revokes all tokens — force re-login
+      // Backend revokes all tokens - force re-login
       await logout();
       router.replace('/(auth)/login');
     },

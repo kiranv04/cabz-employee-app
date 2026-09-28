@@ -1,5 +1,5 @@
 /**
- * env.js — Centralised app configuration for SmartCabz Employee App.
+ * env.js - Centralised app configuration for SmartCabz Employee App.
  *
  * All environment-specific values live here. No raw URLs or keys should
  * appear anywhere else in the codebase.

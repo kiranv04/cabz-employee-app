@@ -21,6 +21,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [branchCode, setBranchCode] = useState('');
+  const [department, setDepartment] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,6 +36,7 @@ export default function SignupScreen() {
         mobile: mobile.trim(),
         password,
         branchCode: branchCode.trim(),
+        department: department.trim(),
       }),
     onSuccess: (res) => {
       if (!res.success) {
@@ -179,6 +181,22 @@ export default function SignupScreen() {
               />
             </View>
             <Text style={styles.hint}>Get this code from your company administrator.</Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Department (optional)</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="briefcase-outline" size={20} color={colors.gray500} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Finance"
+                placeholderTextColor={colors.gray300}
+                value={department}
+                onChangeText={setDepartment}
+                maxLength={100}
+                editable={!mutation.isPending}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>

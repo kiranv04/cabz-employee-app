@@ -17,7 +17,7 @@ import { colors } from '../../../src/constants/colors';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const formatDateTime = (iso) => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
@@ -34,7 +34,7 @@ const DetailRow = ({ icon, label, value }) => (
     </View>
     <View style={styles.detailContent}>
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value ?? '—'}</Text>
+      <Text style={styles.detailValue}>{value ?? '-'}</Text>
     </View>
   </View>
 );
@@ -168,7 +168,7 @@ export default function TripDetailScreen() {
           )}
         </View>
 
-        {/* ── Driver & vehicle card — only if assigned ── */}
+        {/* ── Driver & vehicle card - only if assigned ── */}
         {(driver || vehicle) && (
           <View style={styles.card}>
             <SectionHeader title="Driver & Vehicle" />
@@ -195,7 +195,7 @@ export default function TripDetailScreen() {
           </View>
         )}
 
-        {/* ── Notes / Instructions — only if present ── */}
+        {/* ── Notes / Instructions - only if present ── */}
         {(booking.instructions || booking.notes) && (
           <View style={styles.card}>
             <SectionHeader title="Notes" />
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 16, // status-bar inset now handled by BrandHeader
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: '#fff',

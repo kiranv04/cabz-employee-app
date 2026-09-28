@@ -85,6 +85,16 @@ export function AuthProvider({ children }) {
     setUser(userData);
   }, []);
 
+  // Replace the cached profile (e.g. after a /me refresh) without touching the token.
+  const updateUser = useCallback(async (userData) => {
+    setUser(userData);
+    try {
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+    } catch (e) {
+      console.warn('Failed to persist refreshed profile', e);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -115,11 +125,29 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Profile-screen toggle (Item 18). Either direction needs a successful
+  // biometric/device-passcode check first, so someone holding an already-unlocked
+  // phone can't quietly switch the lock off, and turning it on proves it works.
   const setBiometricEnabled = useCallback(async (value) => {
+    try {
+      if (value) {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = hasHardware && (await LocalAuthentication.isEnrolledAsync());
+        if (!isEnrolled) return { success: false, error: 'not_enrolled' };
+      }
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: value ? 'Enable biometric unlock' : 'Disable biometric unlock',
+        disableDeviceFallback: false,
+      });
+      if (!result.success) return result;
+    } catch (e) {
+      return { success: false, error: 'unavailable' };
+    }
     await SecureStore.setItemAsync(BIOMETRIC_KEY, value ? 'true' : 'false');
     sessionRef.current.biometricEnabled = value;
     setBiometricEnabledState(value);
     if (!value) setBiometricLocked(false);
+    return { success: true };
   }, []);
 
   const value = useMemo(() => ({
@@ -131,9 +159,10 @@ export function AuthProvider({ children }) {
     biometricLocked,
     login,
     logout,
+    updateUser,
     unlockBiometric,
     setBiometricEnabled,
-  }), [token, user, isLoading, biometricEnabled, biometricLocked, login, logout, unlockBiometric, setBiometricEnabled]);
+  }), [token, user, isLoading, biometricEnabled, biometricLocked, login, logout, updateUser, unlockBiometric, setBiometricEnabled]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

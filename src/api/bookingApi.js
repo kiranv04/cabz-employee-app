@@ -9,7 +9,7 @@ const ENDPOINTS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Create a new booking — see buildBookingPayload() in ../hooks/useBookings.js
+// Create a new booking - see buildBookingPayload() in ../hooks/useBookings.js
 // for the exact payload shape (self vs. cost-center-manager booking for
 // another employee).
 //
@@ -65,13 +65,34 @@ export const getVehicleTypes = async (companyId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// List employees in a branch a cost-center-manager manages — powers the
+// List employees in a branch a cost-center-manager manages - powers the
 // "book for" picker in the CCM booking flow (project CLAUDE.md Item 8).
-// Reuses the same endpoint the admin webapp's CCM pages use — role-gated
+// Reuses the same endpoint the admin webapp's CCM pages use - role-gated
 // server-side (role:cost-center-manager), works the same over a mobile
 // Sanctum bearer token as it does over the webapp's session cookie.
 // ─────────────────────────────────────────────────────────────────────────────
 export const getBranchEmployees = async (branchId) => {
   const { data } = await api.get(`/api/ccm/branch/${branchId}/employees`);
   return data; // { data: employee[] }
+};
+// ─────────────────────────────────────────────────────────────────────────────
+// Cities for the booking form's City field (Features Item 33).
+// Returns: { data: [{ id, name, ... }] }
+// ─────────────────────────────────────────────────────────────────────────────
+export const getCities = async () => {
+  const { data } = await api.get('/api/locations');
+  return data;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cost center suggestions (Features Item 33) - codes already used on the
+// caller's company's trip sheets, most recent first. Scoped server-side to the
+// caller's own company.
+// Returns: { data: string[] }
+// ─────────────────────────────────────────────────────────────────────────────
+export const getCostCenterNumbers = async (search) => {
+  const { data } = await api.get('/api/mobile/employees/cost-center-numbers', {
+    params: search ? { search } : {},
+  });
+  return data;
 };

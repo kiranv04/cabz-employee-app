@@ -43,7 +43,7 @@ const isSameFilter = (a, b) => {
 };
 
 const formatDateTime = (iso) => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
@@ -132,7 +132,7 @@ const EmptyState = ({ activeFilter }) => (
     <Text style={styles.emptyTitle}>No bookings found</Text>
     <Text style={styles.emptySub}>
       {activeFilter
-        // activeFilter can be an array (the "In Progress" tab) — use the tab's label.
+        // activeFilter can be an array (the "In Progress" tab) - use the tab's label.
         ? `You have no ${(FILTERS.find((f) => isSameFilter(f.value, activeFilter))?.label ?? '').toLowerCase()} bookings.`
         : 'Your booking history will appear here.'}
     </Text>
@@ -140,7 +140,7 @@ const EmptyState = ({ activeFilter }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Footer — loading more indicator
+// Footer - loading more indicator
 // ─────────────────────────────────────────────────────────────────────────────
 const ListFooter = ({ isFetchingNextPage }) => {
   if (!isFetchingNextPage) return <View style={styles.listFooterSpacer} />;
@@ -183,7 +183,7 @@ export default function HistoryScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // ── Filter change — reset happens automatically via new queryKey ──
+  // ── Filter change - reset happens automatically via new queryKey ──
   const handleFilterChange = (value) => {
     setActiveFilter(value);
   };
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
 
   // ── Header ──
   header: {
-    paddingTop: 56,
+    paddingTop: 16, // status-bar inset now handled by BrandHeader
     paddingBottom: 12,
     paddingHorizontal: 16,
     backgroundColor: '#fff',

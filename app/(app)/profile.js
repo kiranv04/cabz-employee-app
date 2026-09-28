@@ -5,7 +5,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Switch,
 } from 'react-native';
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
@@ -13,11 +15,23 @@ import { logoutEmployee } from '../../src/api/authApi';
 import { colors } from '../../src/constants/colors';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, biometricEnabled, setBiometricEnabled } = useAuth();
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  const handleBiometricToggle = async (value) => {
+    setBiometricBusy(true);
+    const result = await setBiometricEnabled(value);
+    setBiometricBusy(false);
+    if (result.error === 'not_enrolled') {
+      Alert.alert('Not available', 'Set up a fingerprint or face unlock in your phone settings first.');
+    } else if (result.error === 'unavailable') {
+      Alert.alert('Not available', 'Biometric unlock is not available on this device.');
+    }
+  };
 
   const employee = user?.employee;
   const branch = employee?.branch;
-  const company = employee?.company ?? branch?.company; // direct link first — branch may lack one (legacy data)
+  const company = employee?.company ?? branch?.company; // direct link first - branch may lack one (legacy data)
 
   const handleLogout = () => {
     Alert.alert(
@@ -57,10 +71,10 @@ export default function ProfileScreen() {
           <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
         </View>
         <Text style={styles.name}>{user?.name}</Text>
-        <Text style={styles.position}>{employee?.position || '—'}</Text>
+        <Text style={styles.position}>{employee?.position || '-'}</Text>
         <View style={styles.companyBadge}>
           <Ionicons name="business-outline" size={13} color={colors.primary} />
-          <Text style={styles.companyBadgeText}>{company?.name || '—'}</Text>
+          <Text style={styles.companyBadgeText}>{company?.name || '-'}</Text>
         </View>
       </View>
 
@@ -89,17 +103,17 @@ export default function ProfileScreen() {
           <InfoRow
             icon="briefcase-outline"
             label="Department"
-            value={employee?.department || '—'}
+            value={employee?.department || '-'}
           />
           <InfoRow
             icon="git-branch-outline"
             label="Branch"
-            value={branch?.name || '—'}
+            value={branch?.name || '-'}
           />
           <InfoRow
             icon="location-outline"
             label="Address"
-            value={employee?.address || '—'}
+            value={employee?.address || '-'}
             last
           />
         </View>
@@ -122,6 +136,23 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
           </TouchableOpacity>
+          <View style={[styles.actionRow, styles.infoRowTopBorder]}>
+            <View style={[styles.actionLeft, { flex: 1 }]}>
+              <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="finger-print-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionText}>Biometric Unlock</Text>
+                <Text style={styles.actionHint}>Fingerprint, face or phone PIN on open</Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={handleBiometricToggle}
+              disabled={biometricBusy}
+              trackColor={{ true: colors.primary }}
+            />
+          </View>
         </View>
       </View>
 
@@ -164,7 +195,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    paddingTop: 56,
+    paddingTop: 16, // status-bar inset now handled by BrandHeader
     paddingBottom: 32,
     paddingHorizontal: 24,
     borderBottomWidth: 1,
@@ -247,6 +278,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.gray100,
   },
+  infoRowTopBorder: {
+    borderTopWidth: 1,
+    borderTopColor: colors.gray100,
+  },
   infoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -288,6 +323,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.gray900,
     fontWeight: '500',
+  },
+
+  actionHint: {
+    fontSize: 12,
+    color: colors.gray500,
+    marginTop: 2,
   },
 
   // Logout
