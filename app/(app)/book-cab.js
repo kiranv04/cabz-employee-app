@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Linking,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useAuth } from '../../src/context/AuthContext';
-import { useVehicleTypes, useCreateBooking, useBranchEmployees, buildBookingPayload } from '../../src/hooks/useBookings';
+import { useVehicleTypes, useCreateBooking, useBranchEmployees, useCities, useCostCenterNumbers, buildBookingPayload } from '../../src/hooks/useBookings';
 import { colors } from '../../src/constants/colors';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ const SectionLabel = ({ children, required }) => (
 const FieldError = ({ message }) =>
   message ? <Text style={styles.fieldError}>{message}</Text> : null;
 
-// Formats a JS Date to "YYYY-MM-DDTHH:mm:ss" in local time — no UTC conversion
+// Formats a JS Date to "YYYY-MM-DDTHH:mm:ss" in local time - no UTC conversion
 const formatLocalISO = (date) => {
   const pad = (n) => String(n).padStart(2, '0');
   return (
@@ -52,6 +52,8 @@ const formatLocalISO = (date) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
+const EMPTY_MANUAL_PASSENGER = { name: '', mobile: '', email: '', department: '' };
+
 export default function BookCabScreen() {
   const { user } = useAuth();
   const companyId = user?.employee?.company_id ?? user?.employee?.owner_id;
@@ -59,7 +61,7 @@ export default function BookCabScreen() {
   const { mutate: createBooking, isPending: isSubmitting } = useCreateBooking();
 
   // ── Cost-center-manager: booking on behalf of another employee ──────────────
-  // (project CLAUDE.md Item 8) — mirrors the admin webapp's CCMCreateBooking.jsx.
+  // (project CLAUDE.md Item 8) - mirrors the admin webapp's CCMCreateBooking.jsx.
   const isCcm = user?.role === 'cost-center-manager';
   const managedBranches = user?.managed_branches || [];
   const [selectedBranchId, setSelectedBranchId]     = useState(null);
@@ -76,6 +78,23 @@ export default function BookCabScreen() {
     (emp) => emp.id !== selfEmployeeId
       && emp.name?.toLowerCase().includes(employeeSearch.trim().toLowerCase())
   );
+  // "Enter Manually" for a passenger who isn't in the employee list, same
+  // as the admin webapp's CreateBooking.jsx passenger toggle.
+  const [passengerMode, setPassengerMode] = useState('employee'); // 'employee' | 'manual'
+  const [manualPassenger, setManualPassenger] = useState(EMPTY_MANUAL_PASSENGER);
+  const setManual = (key, value) => {
+    setManualPassenger((m) => ({ ...m, [key]: value }));
+    setErrors((e) => ({ ...e, [`passenger_${key}`]: undefined }));
+  };
+  const switchPassengerMode = (mode) => {
+    setPassengerMode(mode);
+    setSelectedEmployeeId(null);
+    setEmployeeSearch('');
+    setShowEmployeeList(false);
+    setManualPassenger(EMPTY_MANUAL_PASSENGER);
+    setErrors((e) => ({ ...e, employee: undefined, passenger_name: undefined, passenger_mobile: undefined, passenger_email: undefined }));
+  };
+
   const selectEmployee = (id, searchText) => {
     setSelectedEmployeeId(id);
     setEmployeeSearch(searchText);
@@ -86,7 +105,7 @@ export default function BookCabScreen() {
   // console.log('Veh types', vehicleTypes); // Debug log to inspect user data structure
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  // Duty/trip type is an admin-side decision, not chosen by the employee —
+  // Duty/trip type is an admin-side decision, not chosen by the employee -
   // the booking is always created without one and the backend defaults it
   // to 'local' server-side (BookingController::employeeStore()), same as any
   // other admin-created booking left undecided at creation time.
@@ -96,6 +115,32 @@ export default function BookCabScreen() {
   const [scheduledAt, setScheduledAt]         = useState(null);  // JS Date
   const [instructions, setInstructions]       = useState('');
   const [notes, setNotes]                     = useState('');
+
+  // ── City + cost center (Features Item 33) ──────────────────────────────────
+  // City defaults to the branch's city (the CCM's selected branch, or the
+  // employee's own) until the user picks one; it also drives the rate card.
+  const { data: cities = [], isLoading: loadingCities } = useCities();
+  const [cityId, setCityId] = useState(null);
+  const defaultCityId = isCcm
+    ? managedBranches.find((b) => b.id === selectedBranchId)?.location ?? null
+    : user?.employee?.branch?.location ?? null;
+  const effectiveCityId = cityId ?? (defaultCityId != null ? Number(defaultCityId) : null);
+
+  // Cost center: pick a code already used on the company's trip sheets, or
+  // type a new one. Suggestions re-query (debounced) as the user types.
+  const [costCenter, setCostCenter]           = useState('');
+  // Required when the company requires cost centers on trip sheets (Item 14.7).
+  const costCenterRequired = !!(user?.employee?.company ?? user?.employee?.branch?.company)?.require_cost_center_number;
+  const [showCostCenterList, setShowCostCenterList] = useState(false);
+  const [costCenterQuery, setCostCenterQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setCostCenterQuery(costCenter.trim()), 300);
+    return () => clearTimeout(t);
+  }, [costCenter]);
+  const { data: costCenterOptions = [] } = useCostCenterNumbers(costCenterQuery);
+  const costCenterSuggestions = costCenterOptions.filter(
+    (c) => c.toLowerCase().includes(costCenter.trim().toLowerCase()) && c !== costCenter.trim()
+  );
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [fetchingGps, setFetchingGps]         = useState(false);
@@ -113,13 +158,18 @@ export default function BookCabScreen() {
       setScheduledAt(null);
       setInstructions('');
       setNotes('');
+      setCityId(null);
+      setCostCenter('');
+      setShowCostCenterList(false);
       setErrors({});
-      // CCM booking-for selection — auto-pick the branch when the CCM only
+      // CCM booking-for selection - auto-pick the branch when the CCM only
       // manages one, matching the web flow's single-branch auto-select.
       setSelectedBranchId(managedBranches.length === 1 ? managedBranches[0].id : null);
       setSelectedEmployeeId(null);
       setEmployeeSearch('');
       setShowEmployeeList(false);
+      setPassengerMode('employee');
+      setManualPassenger(EMPTY_MANUAL_PASSENGER);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [managedBranches.length])
   );
@@ -128,19 +178,19 @@ export default function BookCabScreen() {
   const handleGpsPickup = useCallback(async () => {
     setFetchingGps(true);
     try {
-      // Step 1 — check current status without triggering a dialog
+      // Step 1 - check current status without triggering a dialog
       const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
 
       if (status !== 'granted') {
         if (canAskAgain) {
-          // First time or session reset — ask normally
+          // First time or session reset - ask normally
           const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
           if (newStatus !== 'granted') {
             setFetchingGps(false);
-            return; // They just denied it — stay silent, let them type manually
+            return; // They just denied it - stay silent, let them type manually
           }
         } else {
-          // Permanently denied — send them to Settings
+          // Permanently denied - send them to Settings
           Alert.alert(
             'Location Permission Required',
             'Location access is blocked. Please enable it in Settings to use auto-detect.',
@@ -154,7 +204,7 @@ export default function BookCabScreen() {
         }
       }
 
-      // Step 2 — permission is granted, fetch location
+      // Step 2 - permission is granted, fetch location
       const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -217,12 +267,22 @@ export default function BookCabScreen() {
     const e = {};
     if (isCcm) {
       if (!selectedBranchId)    e.branch   = 'Please select a branch.';
-      if (!selectedEmployeeId)  e.employee = 'Please select who this booking is for.';
+      if (passengerMode === 'manual') {
+        if (!manualPassenger.name.trim()) e.passenger_name = 'Passenger name is required.';
+        if (!/^\d{10}$/.test(manualPassenger.mobile.trim())) e.passenger_mobile = 'Enter a 10-digit mobile number.';
+        if (manualPassenger.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manualPassenger.email.trim())) {
+          e.passenger_email = 'Enter a valid email address.';
+        }
+      } else if (!selectedEmployeeId) {
+        e.employee = 'Please select who this booking is for.';
+      }
     }
+    if (!effectiveCityId)  e.city           = 'Please select a city.';
     if (!vehicleTypeId)    e.vehicleTypeId  = 'Please select a vehicle type.';
     if (!pickupAddress.trim()) e.pickupAddress = 'Pickup address is required.';
     if (!dropAddress.trim())   e.dropAddress   = 'Drop address is required.';
     if (!scheduledAt)          e.scheduledAt   = 'Please select date and time.';
+    if (costCenterRequired && !costCenter.trim()) e.costCenter = 'Cost center is required for your company.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -239,9 +299,18 @@ export default function BookCabScreen() {
       scheduled_at:    formatLocalISO(scheduledAt),
       instructions:    instructions.trim(),
       notes:           notes.trim(),
-      ...(isCcm && {
+      location_id:     effectiveCityId,
+      cost_center_number: costCenter.trim(),
+      ...(isCcm && passengerMode === 'employee' && {
         branch_id:   selectedBranchId,
         employee_id: selectedEmployeeId,
+      }),
+      ...(isCcm && passengerMode === 'manual' && {
+        branch_id:            selectedBranchId,
+        passenger_name:       manualPassenger.name.trim(),
+        passenger_mobile:     manualPassenger.mobile.trim(),
+        passenger_email:      manualPassenger.email.trim(),
+        passenger_department: manualPassenger.department.trim(),
       }),
     };
 
@@ -324,15 +393,80 @@ export default function BookCabScreen() {
 
             <View style={{ marginTop: managedBranches.length > 1 ? 16 : 0 }}>
               <SectionLabel required>Booking For</SectionLabel>
+              {selectedBranchId && (
+                <View style={styles.modeToggleRow}>
+                  {[
+                    { mode: 'employee', label: 'Select Employee', icon: 'people-outline' },
+                    { mode: 'manual',   label: 'Enter Manually',  icon: 'create-outline' },
+                  ].map(({ mode, label, icon }) => {
+                    const selected = passengerMode === mode;
+                    return (
+                      <TouchableOpacity
+                        key={mode}
+                        style={[styles.vehicleChip, selected && styles.vehicleChipSelected]}
+                        onPress={() => passengerMode !== mode && switchPassengerMode(mode)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name={icon} size={14} color={selected ? '#fff' : colors.textSecondary} style={{ marginRight: 6 }} />
+                        <Text style={[styles.vehicleChipText, selected && styles.vehicleChipTextSelected]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
               {!selectedBranchId ? (
                 <Text style={styles.helperText}>Select a branch first.</Text>
+              ) : passengerMode === 'manual' ? (
+                <View style={{ gap: 10 }}>
+                  <View>
+                    <TextInput
+                      style={[styles.input, errors.passenger_name && styles.inputError]}
+                      placeholder="Passenger name *"
+                      placeholderTextColor={colors.textHint}
+                      value={manualPassenger.name}
+                      onChangeText={(t) => setManual('name', t)}
+                    />
+                    <FieldError message={errors.passenger_name} />
+                  </View>
+                  <View>
+                    <TextInput
+                      style={[styles.input, errors.passenger_mobile && styles.inputError]}
+                      placeholder="Mobile number *"
+                      placeholderTextColor={colors.textHint}
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      value={manualPassenger.mobile}
+                      onChangeText={(t) => setManual('mobile', t.replace(/\D/g, ''))}
+                    />
+                    <FieldError message={errors.passenger_mobile} />
+                  </View>
+                  <View>
+                    <TextInput
+                      style={[styles.input, errors.passenger_email && styles.inputError]}
+                      placeholder="Email (optional)"
+                      placeholderTextColor={colors.textHint}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={manualPassenger.email}
+                      onChangeText={(t) => setManual('email', t)}
+                    />
+                    <FieldError message={errors.passenger_email} />
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Department (optional)"
+                    placeholderTextColor={colors.textHint}
+                    value={manualPassenger.department}
+                    onChangeText={(t) => setManual('department', t)}
+                  />
+                </View>
               ) : loadingEmployees ? (
                 <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
               ) : branchEmployees.length === 0 && !selfEmployeeId ? (
-                <Text style={styles.helperText}>No active employees found in this branch.</Text>
+                <Text style={styles.helperText}>No active employees found in this branch. Use "Enter Manually" instead.</Text>
               ) : (
                 <View style={{ gap: 8 }}>
-                  {/* The CCM themself — the one employee shown as a card. */}
+                  {/* The CCM themself - the one employee shown as a card. */}
                   {selfEmployeeId && (
                     <TouchableOpacity
                       style={[styles.passengerCard, { marginBottom: 0 }, selectedEmployeeId === selfEmployeeId && styles.tripTypeCardSelected]}
@@ -350,7 +484,7 @@ export default function BookCabScreen() {
                     </TouchableOpacity>
                   )}
 
-                  {/* Everyone else — searchable dropdown. */}
+                  {/* Everyone else - searchable dropdown. */}
                   <View style={styles.searchWrapper}>
                     <Ionicons name="search-outline" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
@@ -372,7 +506,7 @@ export default function BookCabScreen() {
                   {showEmployeeList && (
                     <View style={styles.dropdownList}>
                       {filteredEmployees.length === 0 ? (
-                        <Text style={styles.dropdownEmpty}>No matching employees.</Text>
+                        <Text style={styles.dropdownEmpty}>No matching employees. Use "Enter Manually" above.</Text>
                       ) : (
                         filteredEmployees.slice(0, 8).map((emp) => (
                           <TouchableOpacity
@@ -406,15 +540,53 @@ export default function BookCabScreen() {
             </View>
             <View style={styles.passengerInfo}>
               <Text style={styles.passengerName}>{user?.name}</Text>
-              <Text style={styles.passengerMeta}>
-                {user?.employee?.position} · {user?.employee?.department}
-              </Text>
+              {[user?.employee?.position, user?.employee?.department].some(Boolean) && (
+                <Text style={styles.passengerMeta}>
+                  {[user?.employee?.position, user?.employee?.department].filter(Boolean).join(' · ')}
+                </Text>
+              )}
             </View>
             <View style={styles.passengerBadge}>
               <Text style={styles.passengerBadgeText}>Booking for self</Text>
             </View>
           </View>
         )}
+
+        {/* ── City ── */}
+        <View style={styles.section}>
+          <SectionLabel required>City</SectionLabel>
+          {loadingCities ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehicleScroll}>
+              {cities.map((c) => {
+                const selected = effectiveCityId === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.vehicleChip, selected && styles.vehicleChipSelected]}
+                    onPress={() => {
+                      setCityId(c.id);
+                      setErrors((e) => ({ ...e, city: undefined }));
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color={selected ? '#fff' : colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.vehicleChipText, selected && styles.vehicleChipTextSelected]}>
+                      {c.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+          <FieldError message={errors.city} />
+        </View>
 
         {/* ── Vehicle Type ── */}
         <View style={styles.section}>
@@ -533,6 +705,55 @@ export default function BookCabScreen() {
           <FieldError message={errors.scheduledAt} />
         </View>
 
+        {/* ── Cost Center (required for some companies) ── */}
+        <View style={styles.section}>
+          <SectionLabel required={costCenterRequired}>Cost Center</SectionLabel>
+          <View style={[styles.searchWrapper, errors.costCenter && styles.inputError]}>
+            <Ionicons name="pricetag-outline" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search or type a cost center"
+              placeholderTextColor={colors.textHint}
+              value={costCenter}
+              onChangeText={(t) => {
+                setCostCenter(t);
+                setShowCostCenterList(true);
+                setErrors((e) => ({ ...e, costCenter: undefined }));
+              }}
+              onFocus={() => setShowCostCenterList(true)}
+              autoCapitalize="characters"
+              maxLength={100}
+            />
+            {!!costCenter && (
+              <TouchableOpacity onPress={() => setCostCenter('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color={colors.textHint} />
+              </TouchableOpacity>
+            )}
+          </View>
+          {showCostCenterList && costCenterSuggestions.length > 0 && (
+            <View style={styles.dropdownList}>
+              {costCenterSuggestions.slice(0, 6).map((code) => (
+                <TouchableOpacity
+                  key={code}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setCostCenter(code);
+                    setShowCostCenterList(false);
+                    setErrors((e) => ({ ...e, costCenter: undefined }));
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dropdownItemName}>{code}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          <Text style={styles.helperText}>
+            Pick one your company has used before, or type a new one.
+          </Text>
+          <FieldError message={errors.costCenter} />
+        </View>
+
         {/* ── Instructions (optional) ── */}
         <View style={styles.section}>
           <SectionLabel>Special Instructions</SectionLabel>
@@ -623,7 +844,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 16, // status-bar inset now handled by BrandHeader
     paddingBottom: 20,
   },
   backBtn: {
@@ -855,6 +1076,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   datePickerPlaceholder: { color: colors.textHint },
+  modeToggleRow: { flexDirection: 'row', marginBottom: 12 },
   helperText: {
     fontSize: 11,
     color: colors.textSecondary,

@@ -36,7 +36,7 @@ export async function logoutEmployee() {
   try {
     await api.post('/api/mobile/employees/logout');
   } catch (e) {
-    // Fail silently — token already cleared locally
+    // Fail silently - token already cleared locally
   }
 }
 
@@ -70,7 +70,7 @@ function extractErrorMessage(error, fallback) {
   return fallback;
 }
 
-export async function sendSignupOtp({ name, email, mobile, password, branchCode }) {
+export async function sendSignupOtp({ name, email, mobile, password, branchCode, department }) {
   try {
     const response = await api.post('/api/mobile/employees/signup/send-otp', {
       name,
@@ -79,6 +79,7 @@ export async function sendSignupOtp({ name, email, mobile, password, branchCode 
       password,
       password_confirmation: password,
       branch_code: branchCode,
+      department: department || null,
     });
 
     return {
@@ -112,5 +113,16 @@ export async function verifySignupOtp(email, otp) {
     return { success: true, data: { token, user } };
   } catch (error) {
     return { success: false, error: extractErrorMessage(error, 'Verification failed. Please try again.') };
+  }
+}
+// Current user's profile (role, employee record incl. branch/company, CCM's
+// managed branches) - same shape as login's `user`. Used to refresh the
+// cached session (src/hooks/useProfileSync.js).
+export async function fetchMe() {
+  try {
+    const response = await api.get('/api/mobile/employees/me');
+    return { success: true, data: response.data.user };
+  } catch (error) {
+    return { success: false, error: extractErrorMessage(error, 'Failed to refresh profile.') };
   }
 }

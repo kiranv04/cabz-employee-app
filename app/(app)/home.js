@@ -34,7 +34,7 @@ const getGreeting = () => {
 };
 
 const formatDateTime = (iso) => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('en-IN', {
     day: '2-digit', month: 'short',
     hour: '2-digit', minute: '2-digit', hour12: true,
@@ -42,7 +42,7 @@ const formatDateTime = (iso) => {
 };
 
 const formatDateOnly = (iso) => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
@@ -112,7 +112,7 @@ const ActiveBookingCard = ({ booking }) => {
           <Text style={styles.trackBtnText}>Track Ride</Text>
         </TouchableOpacity>
 
-        {/* Cancel shortcut — only for pending/assigned */}
+        {/* Cancel shortcut - only for pending/assigned */}
         {canCancelBooking(booking.status) && (
           <TouchableOpacity
             style={styles.cancelShortcutBtn}
@@ -128,7 +128,7 @@ const ActiveBookingCard = ({ booking }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// No Active Booking — empty state
+// No Active Booking - empty state
 // ─────────────────────────────────────────────────────────────────────────────
 const NoActiveBooking = () => (
   <View style={styles.emptyActiveCard}>
@@ -197,7 +197,7 @@ export default function HomeScreen() {
 
   const employee   = user?.employee;
   const branch     = employee?.branch;
-  const company    = employee?.company ?? branch?.company; // direct link first — branch may lack one (legacy data)
+  const company    = employee?.company ?? branch?.company; // direct link first - branch may lack one (legacy data)
 
   // Pull-to-refresh invalidates both queries
   const [refreshing, setRefreshing] = useState(false);
@@ -229,7 +229,7 @@ export default function HomeScreen() {
         <View style={styles.topBarLeft}>
           <Ionicons name="business-outline" size={13} color={colors.primary} style={{ marginRight: 5 }} />
           <Text style={styles.topBarText} numberOfLines={1}>
-            {company?.name ?? '—'} · {branch?.name ?? '—'}
+            {[company?.name, branch?.name].filter(Boolean).join(' · ') || '-'}
           </Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/(app)/profile')}>
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 56,
+    paddingTop: 16, // status-bar inset now handled by BrandHeader
     paddingBottom: 4,
   },
   topBarLeft: {

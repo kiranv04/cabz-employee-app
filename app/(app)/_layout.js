@@ -3,10 +3,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import LoadingScreen from '../../src/components/LoadingScreen';
 import BiometricLockScreen from '../../src/components/BiometricLockScreen';
+import BrandHeader from '../../src/components/BrandHeader';
 import { colors } from '../../src/constants/colors';
+import { useProfileSync } from '../../src/hooks/useProfileSync';
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading, biometricLocked } = useAuth();
+  useProfileSync();
 
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
@@ -15,7 +18,9 @@ export default function AppLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        // SmartCabz logo bar on every tab screen (Features Item 34).
+        headerShown: true,
+        header: () => <BrandHeader />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.gray500,
         tabBarStyle: {

@@ -19,7 +19,7 @@ import { colors } from '../../../src/constants/colors';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const formatDateTime = (iso) => {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
@@ -69,14 +69,14 @@ const PendingState = ({ booking }) => (
   </View>
 );
 
-// ── Trip OTP — the driver asks for it at the start of EVERY leg (including
+// ── Trip OTP - the driver asks for it at the start of EVERY leg (including
 // after a pause/resume), so it's shown on every live-trip card, not just
 // the assigned one. ────────────────────────────────────────────────────────
 const OtpRow = ({ booking }) => (
   <View style={styles.waitMeta}>
     <View style={styles.waitMetaRow}>
       <Text style={styles.otp}>OTP for driver: </Text>
-      <Text style={styles.otp}>{booking.employee?.otp ?? '—'}</Text>
+      <Text style={styles.otp}>{booking.employee?.otp ?? '-'}</Text>
     </View>
   </View>
 );
@@ -95,7 +95,7 @@ const AssignedState = ({ booking }) => {
           <Ionicons name="person" size={24} color="#fff" />
         </View>
         <View style={styles.driverInfo}>
-          <Text style={styles.driverName}>{driver?.name ?? '—'}</Text>
+          <Text style={styles.driverName}>{driver?.name ?? '-'}</Text>
           {driver?.mobile && (
             <Text style={styles.driverMeta}>{driver.mobile}</Text>
           )}
@@ -155,11 +155,11 @@ const PausedState = ({ booking }) => {
           <Ionicons name="person" size={24} color="#fff" />
         </View>
         <View style={styles.driverInfo}>
-          <Text style={styles.driverName}>{driver?.name ?? '—'}</Text>
+          <Text style={styles.driverName}>{driver?.name ?? '-'}</Text>
           {driver?.mobile && (
             <Text style={styles.driverMeta}>{driver.mobile}</Text>
           )}
-          <Text style={styles.driverMeta}>Trip paused — your driver will continue shortly</Text>
+          <Text style={styles.driverMeta}>Trip paused. Your driver will continue shortly</Text>
         </View>
         <StatusChip status="paused" />
       </View>
@@ -231,7 +231,7 @@ const InProgressState = ({ booking }) => {
             <Ionicons name="person" size={24} color="#fff" />
           </View>
           <View style={styles.driverInfo}>
-            <Text style={styles.driverName}>{driver?.name ?? '—'}</Text>
+            <Text style={styles.driverName}>{driver?.name ?? '-'}</Text>
             {driver?.mobile && (
               <Text style={styles.driverMeta}>{driver.mobile}</Text>
             )}
@@ -243,7 +243,7 @@ const InProgressState = ({ booking }) => {
           <View style={styles.vehicleRow}>
             <Ionicons name="car-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.vehicleText}>
-              {vehicleType?.name ?? '—'} · {vehicle.license_plate}
+              {vehicleType?.name ?? '-'} · {vehicle.license_plate}
             </Text>
           </View>
         )}
@@ -291,10 +291,10 @@ const InProgressState = ({ booking }) => {
           <Ionicons name="person" size={18} color="#fff" />
         </View>
         <View style={styles.driverStripInfo}>
-          <Text style={styles.driverStripName}>{driver?.name ?? '—'}</Text>
+          <Text style={styles.driverStripName}>{driver?.name ?? '-'}</Text>
           {vehicle && (
             <Text style={styles.driverStripMeta}>
-              {vehicleType?.name ?? '—'} · {vehicle.license_plate}
+              {vehicleType?.name ?? '-'} · {vehicle.license_plate}
             </Text>
           )}
         </View>
@@ -422,7 +422,7 @@ export default function TrackScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {/* ── Content — map fills screen for in_progress, scrollable otherwise ── */}
+      {/* ── Content - map fills screen for in_progress, scrollable otherwise ── */}
       {isInProgress ? (
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
@@ -457,7 +457,7 @@ export default function TrackScreen() {
         </ScrollView>
       )}
 
-      {/* ── Cancel button — shown for pending and assigned only ── */}
+      {/* ── Cancel button - shown for pending and assigned only ── */}
       {canCancelBooking(status) && (
         <View style={styles.cancelBar}>
           <TouchableOpacity
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 16, // status-bar inset now handled by BrandHeader
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: '#fff',

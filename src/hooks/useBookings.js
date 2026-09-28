@@ -6,11 +6,13 @@ import {
   cancelBooking,
   getVehicleTypes,
   getBranchEmployees,
+  getCities,
+  getCostCenterNumbers,
 } from '../api/bookingApi';
 import { useAuth } from '../context/AuthContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Query keys — centralised so invalidations are consistent everywhere
+// Query keys - centralised so invalidations are consistent everywhere
 // ─────────────────────────────────────────────────────────────────────────────
 export const bookingKeys = {
   all:          ['bookings'],
@@ -24,7 +26,7 @@ export const bookingKeys = {
 // ─────────────────────────────────────────────────────────────────────────────
 // useVehicleTypes
 // Fetches vehicle types for the booking form.
-// Cached for 10 minutes — this data rarely changes.
+// Cached for 10 minutes - this data rarely changes.
 // ─────────────────────────────────────────────────────────────────────────────
 export const useVehicleTypes = (companyId) => {
   // console.log('Fetching vehicle types for companyId:', companyId);
@@ -39,7 +41,7 @@ export const useVehicleTypes = (companyId) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useBranchEmployees
-// Employees in a branch a cost-center-manager manages — feeds the "book for"
+// Employees in a branch a cost-center-manager manages - feeds the "book for"
 // picker on the booking form when the logged-in user is a CCM.
 // ─────────────────────────────────────────────────────────────────────────────
 export const useBranchEmployees = (branchId) => {
@@ -53,8 +55,34 @@ export const useBranchEmployees = (branchId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// useCities - the City picker on the booking form. Rarely changes.
+// ─────────────────────────────────────────────────────────────────────────────
+export const useCities = () => {
+  return useQuery({
+    queryKey: ['cities'],
+    queryFn:  getCities,
+    select:   (data) => data.data ?? [],
+    staleTime: 60 * 60 * 1000,
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useCostCenterNumbers - suggestions for the booking form's Cost Center field,
+// re-queried server-side as the user types (debounce in the caller).
+// ─────────────────────────────────────────────────────────────────────────────
+export const useCostCenterNumbers = (search) => {
+  return useQuery({
+    queryKey: ['costCenterNumbers', search || ''],
+    queryFn:  () => getCostCenterNumbers(search),
+    select:   (data) => data.data ?? [],
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (prev) => prev,
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // useBookings
-// Paginated list of bookings — used by history.js
+// Paginated list of bookings - used by history.js
 // Pass status to filter: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled'
 // Pass status = null for "all"
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,7 +108,7 @@ export const useBookings = ({ status = null, per_page = 15 } = {}) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useActiveBooking
-// Fetches only pending + assigned + in_progress bookings — used on home.js
+// Fetches only pending + assigned + in_progress bookings - used on home.js
 // Takes the first result as the "active" booking
 // ─────────────────────────────────────────────────────────────────────────────
 export const useActiveBooking = () => {
@@ -98,7 +126,7 @@ export const useActiveBooking = () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useRecentBookings
-// Last 3 completed/cancelled bookings — used for "Recent Trips" on home.js
+// Last 3 completed/cancelled bookings - used for "Recent Trips" on home.js
 // ─────────────────────────────────────────────────────────────────────────────
 export const useRecentBookings = () => {
   const { user } = useAuth();
@@ -115,7 +143,7 @@ export const useRecentBookings = () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useBooking
-// Single booking detail — used by track/[id].js and trip/[id].js
+// Single booking detail - used by track/[id].js and trip/[id].js
 // Polls every 10 seconds when the booking is active (pending/assigned/in_progress)
 // Stops polling once completed or cancelled
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,7 +155,7 @@ export const useBooking = (id) => {
     enabled:  !!id,
     staleTime: 10 * 1000,
     refetchInterval: (query) => {
-      // query.state.data is the raw API response ({ data: booking }) — `select`
+      // query.state.data is the raw API response ({ data: booking }) - `select`
       // isn't applied here. Reading `.status` off the envelope was always
       // undefined, which stopped polling immediately, so the screen never
       // picked up status changes (e.g. paused → assigned) on its own.
@@ -141,7 +169,7 @@ export const useBooking = (id) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useBookingDetail
-// Same as useBooking but no polling — used by the read-only trip detail screen
+// Same as useBooking but no polling - used by the read-only trip detail screen
 // for completed/cancelled trips where real-time updates aren't needed
 // ─────────────────────────────────────────────────────────────────────────────
 export const useBookingDetail = (id) => {
@@ -150,7 +178,7 @@ export const useBookingDetail = (id) => {
     queryFn:  () => getBooking(id),
     select:   (data) => data.data ?? null,
     enabled:  !!id,
-    staleTime: 5 * 60 * 1000, // 5 min — completed trips don't change
+    staleTime: 5 * 60 * 1000, // 5 min - completed trips don't change
   });
 };
 
@@ -187,7 +215,7 @@ export const useCancelBooking = (id) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// canCancelBooking — pure helper, no hooks
+// canCancelBooking - pure helper, no hooks
 // ─────────────────────────────────────────────────────────────────────────────
 export const canCancelBooking = (status) => {
   return status === 'pending';
@@ -196,18 +224,20 @@ export const canCancelBooking = (status) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // buildBookingPayload
 // Assembles the API payload from form state + auth user. Cost centers were
-// removed backend-wide (project CLAUDE.md Item 1) — company/location are
+// removed backend-wide (project CLAUDE.md Item 1) - company/location are
 // derived from the employee's branch, not a cost center, and the backend
 // resolves location_id from branch_id server-side so the app never sends it.
 //
-// Duty/trip type is never sent from here — it's an admin-side decision, not
+// Duty/trip type is never sent from here - it's an admin-side decision, not
 // the employee's; the backend defaults it to 'local' (BookingController::
 // employeeStore()) and an admin corrects it later if needed.
 //
 // A cost-center-manager (project CLAUDE.md Item 8) books on behalf of another
 // employee: form.branch_id/form.employee_id come from the branch/employee
 // picker instead of the caller's own record, and the backend fills in
-// passenger_name/mobile from that employee.
+// passenger_name/mobile from that employee. If the passenger isn't in the
+// list, the CCM enters them manually instead (no employee_id; the backend
+// takes passenger_name/mobile/email/department as given).
 // ─────────────────────────────────────────────────────────────────────────────
 export const buildBookingPayload = (user, form) => {
   const employee = user.employee;
@@ -220,13 +250,22 @@ export const buildBookingPayload = (user, form) => {
     pickup_address:  form.pickup_address,
     drop_address:    form.drop_address,
     scheduled_at:    form.scheduled_at,
+    ...(form.location_id     && { location_id:   form.location_id }),
+    ...(form.cost_center_number && { cost_center_number: form.cost_center_number }),
     ...(form.instructions    && { instructions:  form.instructions }),
     ...(form.notes           && { notes:         form.notes }),
   };
 
   if (isCcm) {
-    payload.branch_id   = form.branch_id;
-    payload.employee_id = form.employee_id;
+    payload.branch_id = form.branch_id;
+    if (form.employee_id) {
+      payload.employee_id = form.employee_id;
+    } else {
+      payload.passenger_name   = form.passenger_name;
+      payload.passenger_mobile = form.passenger_mobile;
+      if (form.passenger_email)      payload.passenger_email = form.passenger_email;
+      if (form.passenger_department) payload.department      = form.passenger_department;
+    }
   } else {
     payload.employee_id      = employee?.id;
     payload.branch_id        = employee?.branch_id;
@@ -253,7 +292,7 @@ export const STATUS_CONFIG = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRIP TYPE LABELS — for display in detail/summary screens
+// TRIP TYPE LABELS - for display in detail/summary screens
 // ─────────────────────────────────────────────────────────────────────────────
 export const TRIP_TYPE_LABELS = {
   local:          'Local',
