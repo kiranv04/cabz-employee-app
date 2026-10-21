@@ -9,7 +9,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cabz.employee",
+      "bundleIdentifier": "com.smartcabz.employee",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to set your pickup point.",
         "NSLocationAlwaysUsageDescription": "We need your location to track your ride.",
@@ -21,7 +21,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0AA5FD"
       },
-      "package": "com.cabz.employee",
+      "package": "com.smartcabz.employee",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
