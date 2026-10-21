@@ -277,6 +277,16 @@ export const buildBookingPayload = (user, form) => {
   return payload;
 };
 
+// Latest driver ping for the live map. The driver app pings every 15 s.
+export const useDriverLocation = (id, enabled) =>
+  useQuery({
+    queryKey: [...bookingKeys.detail(id), 'location'],
+    queryFn:  () => getBookingLocation(id),
+    select:   (data) => data?.location ?? null,
+    enabled:  !!id && enabled,
+    refetchInterval: 15 * 1000,
+  });
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BOOKING STATUS CONFIG
 // Centralised colors + labels for status chips across all screens
