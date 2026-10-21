@@ -4,7 +4,9 @@ const ENDPOINTS = {
   CREATE:        '/api/mobile/employees/bookings',           // POST
   LIST:          '/api/mobile/employees/bookings',           // GET  ?page=&status=
   SHOW:          (id) => `/api/mobile/employees/bookings/${id}`,   // GET
+  LOCATION:      (id) => `/api/mobile/employees/bookings/${id}/location`, // GET latest driver ping
   CANCEL:        (id) => `/api/mobile/employees/bookings/${id}/cancel`, // POST
+  TRACKING_LINK: (id) => `/api/mobile/employees/bookings/${id}/tracking-link`, // POST (cost center manager, manual-passenger bookings)
   VEHICLE_TYPES: (companyId) => `/api/mobile/employees/companies/${companyId}/vehicle-types`,     // GET
 };
 
@@ -50,6 +52,18 @@ export const getBooking = async (id) => {
 // Only valid for status: pending | assigned
 // Backend should reject if status is in_progress | completed | cancelled
 // ─────────────────────────────────────────────────────────────────────────────
+// Public live-tracking link for a manually entered passenger (CCM only).
+// Returns the url string.
+export const getBookingLocation = async (id) => {
+  const { data } = await api.get(ENDPOINTS.LOCATION(id));
+  return data.data; // { active, location: { latitude, longitude, recorded_at } | null }
+};
+
+export const getTrackingLink = async (id) => {
+  const { data } = await api.post(ENDPOINTS.TRACKING_LINK(id));
+  return data.data.url;
+};
+
 export const cancelBooking = async (id) => {
   const { data } = await api.post(ENDPOINTS.CANCEL(id));
   return data; // { message }

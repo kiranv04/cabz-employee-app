@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -7,13 +8,16 @@ import {
   Alert,
   ScrollView,
   RefreshControl,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-import { useBooking, useCancelBooking, canCancelBooking, STATUS_CONFIG } from '../../../src/hooks/useBookings';
+import { useBooking, useCancelBooking, useDriverLocation, canCancelBooking, STATUS_CONFIG } from '../../../src/hooks/useBookings';
+import DriverMap from '../../../src/components/DriverMap';
 import { colors } from '../../../src/constants/colors';
+import { getTrackingLink } from '../../../src/api/bookingApi';
+import { useAuth } from '../../../src/context/AuthContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -76,7 +80,9 @@ const OtpRow = ({ booking }) => (
   <View style={styles.waitMeta}>
     <View style={styles.waitMetaRow}>
       <Text style={styles.otp}>OTP for driver: </Text>
-      <Text style={styles.otp}>{booking.employee?.otp ?? '-'}</Text>
+      {/* Employee bookings use the employee's OTP; manually entered passengers
+          have no employee row, so the booking carries its own. */}
+      <Text style={styles.otp}>{booking.employee?.otp ?? booking.trip_otp ?? '-'}</Text>
     </View>
   </View>
 );
@@ -135,10 +141,7 @@ const AssignedState = ({ booking }) => {
         </View>
       </View>
       <OtpRow booking={booking} />
-      <View style={styles.mapComingSoon}>
-        <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
-        <Text style={styles.mapComingSoonText}>Live tracking coming soon</Text>
-      </View>
+      {booking.status === 'journey_started' && <LiveMap booking={booking} />}
     </View>
   );
 };
@@ -176,30 +179,18 @@ const PausedState = ({ booking }) => {
   );
 };
 
-// ── In Progress state: map shown with mocked driver location ─────────────────
-// TODO: Replace MOCK_DRIVER_LOCATION with real Pusher/Reverb WebSocket data
-//       Channel: private-booking.{id}
-//       Event:   DriverLocationUpdated → { lat, lng, bearing, eta_minutes }
-const MOCK_DRIVER_LOCATION = { latitude: 12.9716, longitude: 77.5946 }; // Bengaluru center
-
+// ── In Progress state: live map + driver card ────────────────────────────────
 const InProgressState = ({ booking }) => {
   const driver      = booking.driver;
   const vehicle     = booking.vehicle;
   const vehicleType = booking.vehicle_type;
 
-  // TODO: Uncomment when Google Maps is integrated
-  // const region = {
-  //   ...MOCK_DRIVER_LOCATION,
-  //   latitudeDelta:  0.03,
-  //   longitudeDelta: 0.03,
-  // };
-
   return (
-    // TODO: Swap this View back to mapContainer style when map is ready
-    // <View style={styles.mapContainer}>
     <View style={styles.inProgressContainer}>
 
-      {/* ── Static banner (remove when map is live) ─────────────────────── */}
+      <LiveMap booking={booking} />
+
+      {/* ── Status banner ─────────────────────── */}
       <View style={styles.inProgressBanner}>
         <View style={styles.inProgressIconWrap}>
           <Ionicons name="car" size={32} color={colors.primary} />
@@ -208,21 +199,6 @@ const InProgressState = ({ booking }) => {
         <Text style={styles.inProgressSubtitle}>Your ride is currently underway</Text>
       </View>
 
-      {/* ── TODO: Uncomment MapView when Google Maps is integrated ────────
-      <MapView
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={region}
-        showsUserLocation
-        showsMyLocationButton={false}
-      >
-        <Marker coordinate={MOCK_DRIVER_LOCATION} title={driver?.name ?? 'Driver'}>
-          <View style={styles.driverMarker}>
-            <Ionicons name="car" size={18} color="#fff" />
-          </View>
-        </Marker>
-      </MapView>
-      ──────────────────────────────────────────────────────────────────── */}
 
       {/* ── Driver + vehicle card ────────────────────────────────────────── */}
       <View style={styles.assignedCard}>
@@ -275,35 +251,10 @@ const InProgressState = ({ booking }) => {
           </View>
         </View>
 
-        {/* ── TODO: Swap this for real-time ETA when Pusher/Reverb is wired up
-            Channel: private-booking.{id}
-            Event:   DriverLocationUpdated → { lat, lng, bearing, eta_minutes }
-        ── */}
-        <View style={styles.mapComingSoon}>
-          <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
-          <Text style={styles.mapComingSoonText}>Live tracking coming soon</Text>
-        </View>
       </View>
 
-      {/* ── TODO: Uncomment driverStrip when map is live (sits over the map) ─
-      <View style={styles.driverStrip}>
-        <View style={styles.driverStripAvatar}>
-          <Ionicons name="person" size={18} color="#fff" />
-        </View>
-        <View style={styles.driverStripInfo}>
-          <Text style={styles.driverStripName}>{driver?.name ?? '-'}</Text>
-          {vehicle && (
-            <Text style={styles.driverStripMeta}>
-              {vehicleType?.name ?? '-'} · {vehicle.license_plate}
-            </Text>
-          )}
-        </View>
-        <StatusChip status="in_progress" />
-      </View>
-      ──────────────────────────────────────────────────────────────────── */}
 
     </View>
-    // </View> {/* closes mapContainer */}
   );
 };
 
@@ -356,6 +307,29 @@ export default function TrackScreen() {
   const { id } = useLocalSearchParams();
   const { data: booking, isLoading, isError, refetch, isRefetching } = useBooking(id);
   const { mutate: cancel, isPending: cancelling } = useCancelBooking(id);
+  const { user } = useAuth();
+  const [sharing, setSharing] = useState(false);
+
+  // A CCM booking for a guest: the guest has no app, so the CCM shares a
+  // public tracking link (and the OTP shown on the cards) with them.
+  const canShareTracking =
+    user?.role === 'cost-center-manager' && booking && !booking.employee_id &&
+    !['completed', 'cancelled', 'trip_ended'].includes(booking.status);
+
+  const handleShareTracking = async () => {
+    setSharing(true);
+    try {
+      const url = await getTrackingLink(id);
+      await Share.share({
+        message: `Track your SmartCabz ride live: ${url}` +
+          (booking.trip_otp ? `\nShare this OTP with the driver to start the trip: ${booking.trip_otp}` : ''),
+      });
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Could not create the tracking link. Please try again.');
+    } finally {
+      setSharing(false);
+    }
+  };
   // console.log('Booking data:', booking);
 
   const handleCancel = () => {
@@ -455,6 +429,27 @@ export default function TrackScreen() {
           {status === 'paused'   && <PausedState   booking={booking} />}
           {isDone                && <DoneState     booking={booking} />}
         </ScrollView>
+      )}
+
+      {/* ── Share tracking link - CCM, manually entered passenger ── */}
+      {canShareTracking && (
+        <View style={styles.cancelBar}>
+          <TouchableOpacity
+            style={[styles.shareBtn, sharing && styles.cancelBtnDisabled]}
+            onPress={handleShareTracking}
+            disabled={sharing}
+          >
+            {sharing
+              ? <ActivityIndicator color={colors.primary} />
+              : (
+                <>
+                  <Ionicons name="share-social-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.shareBtnText}>Share Tracking Link</Text>
+                </>
+              )
+            }
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* ── Cancel button - shown for pending and assigned only ── */}
@@ -860,6 +855,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.error ?? '#EF4444',
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 13,
+  },
+  shareBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
   },
   otp: {
     fontSize: 14,

@@ -3,6 +3,7 @@ import {
   createBooking,
   getBookings,
   getBooking,
+  getBookingLocation,
   cancelBooking,
   getVehicleTypes,
   getBranchEmployees,
