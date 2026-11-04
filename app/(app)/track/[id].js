@@ -40,6 +40,22 @@ const StatusChip = ({ status }) => {
   );
 };
 
+// Live map of the driver. Off until EXPO_PUBLIC_MAPS_ENABLED=true so builds
+// without a Maps key never mount the native map view.
+const MAPS_ENABLED = process.env.EXPO_PUBLIC_MAPS_ENABLED === 'true';
+
+const LiveMap = ({ booking }) => {
+  const { data: location } = useDriverLocation(booking.id, MAPS_ENABLED);
+  if (!MAPS_ENABLED) return null;
+  return (
+    <DriverMap
+      location={location}
+      pickup={booking.pickup_address}
+      drop={booking.drop_address}
+    />
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-screens
 // ─────────────────────────────────────────────────────────────────────────────

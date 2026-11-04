@@ -26,13 +26,13 @@ const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.white,
     paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
   },
-  // Source is 1003×120 - keep that ratio at 22px tall.
+  // Source is 1003×120 - keep that ratio at 34px tall.
   logo: {
-    height: 22,
-    width: 184,
+    height: 34,
+    width: 284,
   },
 });
