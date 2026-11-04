@@ -94,6 +94,15 @@ const BookingCard = ({ booking }) => {
         <StatusChip status={booking.status} />
       </View>
 
+      {booking.booked_for_other && (
+        <View style={styles.forOtherChip}>
+          <Ionicons name="people-outline" size={11} color={colors.primary} />
+          <Text style={styles.forOtherText} numberOfLines={1}>
+            Booked for {booking.passenger_name || 'guest'}
+          </Text>
+        </View>
+      )}
+
       {/* Route */}
       <View style={styles.routeBlock}>
         <View style={styles.routeRow}>
@@ -402,6 +411,18 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.2,
   },
+  forOtherChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+    backgroundColor: colors.primary + '12',
+  },
+  forOtherText: { fontSize: 11, fontWeight: '600', color: colors.primary },
   tripType: {
     fontSize: 11,
     fontWeight: '500',

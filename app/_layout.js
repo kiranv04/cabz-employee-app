@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/context/AuthContext';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import UpdateGate from '../src/components/UpdateGate';
 
 const queryClient = new QueryClient();
 
@@ -14,7 +15,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <SafeAreaProvider>
-              <Stack screenOptions={{ headerShown: false }} />
+              <UpdateGate>
+                <Stack screenOptions={{ headerShown: false }} />
+              </UpdateGate>
             </SafeAreaProvider>
           </AuthProvider>
         </QueryClientProvider>
